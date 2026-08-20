@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.29.0](https://github.com/santifer/career-ops/compare/career-ops-v1.28.0...career-ops-v1.29.0) (2026-08-20)
+
+
+### Features
+
+* **anti-fabrication:** tier the Source-of-Truth boundary and add story-provenance-check ([#2947](https://github.com/santifer/career-ops/issues/2947)) ([498dd11](https://github.com/santifer/career-ops/commit/498dd112eb6fa35333aa6c00cef3f8cbce6944d0))
+* **pdf:** declare CV section order in config/profile.yml ([#2533](https://github.com/santifer/career-ops/issues/2533)) ([c90b139](https://github.com/santifer/career-ops/commit/c90b13975c7e0ff3c724744608652929678e88a0))
+* **verify-pipeline:** flag a malformed follow-ups.md instead of reading it as empty ([#2971](https://github.com/santifer/career-ops/issues/2971)) ([a5ffae2](https://github.com/santifer/career-ops/commit/a5ffae2accf300366df24cd9e853475f3d9bf22b))
+* **web:** restrict the local dashboard API to same-origin and loopback ([b3974e6](https://github.com/santifer/career-ops/commit/b3974e6104d83c2714fd0d071898a7c7b9f68726))
+
+
+### Bug Fixes
+
+* **agent-inbox:** seed the queue under the lock, not before it ([e585853](https://github.com/santifer/career-ops/commit/e585853f60db86abd9802a53e6f3c10862e038e6))
+* **ashby:** stop retrying a permanent failure, and honour a clamped Retry-After ([#3072](https://github.com/santifer/career-ops/issues/3072)) ([27fcd48](https://github.com/santifer/career-ops/commit/27fcd48e60a3cf34edd97742e0656b2534c2b5af))
+* **liveness:** a dead third-party host must not poison the whole verdict ([1389e6c](https://github.com/santifer/career-ops/commit/1389e6cb6186facf2fc847666d9ae85d2723d568))
+* **pipeline-lock:** a vanished lock is not a lock you may delete ([680419f](https://github.com/santifer/career-ops/commit/680419f9d5316c0b8ec07f35fecfaa6c21b73e2b))
+* **portals.example:** name the support ROLE, not the whole domain ([d57a243](https://github.com/santifer/career-ops/commit/d57a24371113ef41d5caaf15b58490c84d7a1a44))
+* **providers/lever:** fold categories.allLocations into location ([e3260d8](https://github.com/santifer/career-ops/commit/e3260d8a4aeca5cae8d486d1f3dbd61a0a583a1f))
+* **tests:** keep the end of a failing script's output, not just the head ([#3035](https://github.com/santifer/career-ops/issues/3035)) ([a0f4622](https://github.com/santifer/career-ops/commit/a0f46223372a01730b74e16e7c0f89c26d1c41ea))
+* **updater:** parse the SYSTEM_PATHS array instead of scraping it with a regex ([#3099](https://github.com/santifer/career-ops/issues/3099)) ([61f8850](https://github.com/santifer/career-ops/commit/61f8850d14e828567a3cc7f7a665e9e440c4eed0))
+* **update:** stop misreading upstream's own content as a local edit ([#3094](https://github.com/santifer/career-ops/issues/3094)) ([50c5400](https://github.com/santifer/career-ops/commit/50c54008c078b339e4da4f4427b5a253e28c95a1))
+* **web:** give the methodology link a real tap target and a new-tab cue ([#3023](https://github.com/santifer/career-ops/issues/3023)) ([344a116](https://github.com/santifer/career-ops/commit/344a116de15fd98c1e1d48aae9bf08bbdc4f067e))
+* **web:** keep child stderr out of the status response on the crash path ([#3022](https://github.com/santifer/career-ops/issues/3022)) ([883ebec](https://github.com/santifer/career-ops/commit/883ebec33c1c775bb295c4b4eecca31fc53066da))
+* **web:** keep the query string in the Explore dedup key so distinct postings don't collapse ([#3082](https://github.com/santifer/career-ops/issues/3082)) ([275e213](https://github.com/santifer/career-ops/commit/275e2137fb804a762caed8bed34194c5920b71c4))
+* **web:** keep the run stream alive during silent agent phases ([#3026](https://github.com/santifer/career-ops/issues/3026)) ([aaeb114](https://github.com/santifer/career-ops/commit/aaeb114238283ce3cc44b7b3e2168ed2d22c56a8))
+* **web:** stamp pipeline first_seen with the local day, not UTC ([#3081](https://github.com/santifer/career-ops/issues/3081)) ([809e93b](https://github.com/santifer/career-ops/commit/809e93b419094dcc77c8f3d3f1a1c31c578a547a))
+
 ## [1.28.0](https://github.com/santifer/career-ops/compare/career-ops-v1.27.0...career-ops-v1.28.0) (2026-08-20)
 
 
