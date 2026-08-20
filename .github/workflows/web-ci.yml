@@ -5,6 +5,7 @@ name: Web CI
 # changes never trigger it. The web/ tree versions and releases as its own
 # release-please component.
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'web/**'

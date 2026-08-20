@@ -1,5 +1,6 @@
 name: 'CodeQL Analysis'
 on:
+  workflow_dispatch:
   push:
     branches: [main, nonprofit-community]
   pull_request:
