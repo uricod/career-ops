@@ -12,7 +12,7 @@ import { assembleDedupContext } from "@/lib/core/discover";
 // cannot persist; the only writes happen when the user later ADDs a candidate.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 600;
+export const maxDuration = 300; // Vercel Hobby ceiling; Community mode blocks this local-only route
 
 type CodexCapabilityCacheEntry = {
   mtimeMs: number;
