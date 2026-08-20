@@ -1,9 +1,9 @@
 name: 'CodeQL Analysis'
 on:
   push:
-    branches: [main]
+    branches: [main, nonprofit-community]
   pull_request:
-    branches: [main]
+    branches: [main, nonprofit-community]
   schedule:
     - cron: '0 4 * * 1' # Weekly Monday 4am UTC
 

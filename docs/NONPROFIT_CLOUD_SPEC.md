@@ -146,19 +146,19 @@ Required in hosted mode:
 
 - `NEXT_PUBLIC_CAREER_OPS_MODE=community`
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SECRET_KEY`
+- `COMMUNITY_RATE_LIMIT_SECRET`
 - `OPENAI_API_KEY`
 
 Recommended:
 
 - `OPENAI_MODEL`
-- `COMMUNITY_DAILY_TOKEN_LIMIT`
+- `NEXT_PUBLIC_COMMUNITY_DAILY_TOKEN_LIMIT`
 - `COMMUNITY_MAX_OUTPUT_TOKENS`
-- `COMMUNITY_ADMIN_EMAILS`
 - `NEXT_PUBLIC_SITE_URL`
 
-Run both Supabase migrations, add the production and preview callback URLs in Supabase Auth, set Vercel's Root Directory to `web`, then deploy.
+Run all Supabase migrations, disable public Auth signups, add the production and preview callback URLs in Supabase Auth, set Vercel's Root Directory to `web`, then deploy. Legacy anon/service-role environment names remain supported for existing installations.
 
 ## Definition of done
 

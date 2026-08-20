@@ -8,10 +8,12 @@ on:
   pull_request:
     paths:
       - 'web/**'
+      - 'supabase/**'
   push:
-    branches: [main]
+    branches: [main, nonprofit-community]
     paths:
       - 'web/**'
+      - 'supabase/**'
 
 permissions:
   contents: read

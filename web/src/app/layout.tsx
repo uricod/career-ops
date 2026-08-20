@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { inter, instrumentSerif, instrumentSerifItalic } from "@/lib/fonts";
 import { AppShell } from "@/components/app-shell";
 import { COMMUNITY_MODE } from "@/lib/community/config";
@@ -18,6 +19,9 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: COMMUNITY_MODE ? "The Commons" : "career-ops",
   },
+  robots: COMMUNITY_MODE
+    ? { index: false, follow: false, nocache: true }
+    : undefined,
 };
 
 export const viewport: Viewport = {
@@ -34,11 +38,12 @@ export const viewport: Viewport = {
 // jarring light seam. Matches --bg (light #f7f6f3 / dark #0a0a0a).
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('career-ops:theme');var d=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement('meta');m.setAttribute('name','theme-color');document.head.appendChild(m);}m.setAttribute('content',d?'#0a0a0a':'#f7f6f3');}catch(e){document.documentElement.classList.add('dark');}})();`;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get("x-nonce") || undefined;
   return (
     <html
       lang="en"
@@ -46,7 +51,10 @@ export default function RootLayout({
       className={`${inter.variable} ${instrumentSerif.variable} ${instrumentSerifItalic.variable}`}
     >
       <body className="font-sans antialiased">
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }}
+        />
         <AppShell>{children}</AppShell>
       </body>
     </html>

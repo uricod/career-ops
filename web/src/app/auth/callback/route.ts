@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/community/supabase-server";
+import { safeCommunityPath } from "@/lib/community/security.mjs";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const invite = url.searchParams.get("invite");
-  const requested = url.searchParams.get("next") || "/community";
-  const next =
-    requested.startsWith("/") && !requested.startsWith("//")
-      ? requested
-      : "/community";
+  const next = safeCommunityPath(url.searchParams.get("next"));
   const supabase = await getSupabaseServerClient();
   if (code && supabase) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -19,9 +16,15 @@ export async function GET(request: Request) {
         { p_code: invite },
       );
       if (!redeemError && redeemed === true)
-        return NextResponse.redirect(new URL(next, url.origin));
+        return privateRedirect(new URL(next, url.origin));
     }
     await supabase.auth.signOut();
   }
-  return NextResponse.redirect(new URL("/login?error=invite", url.origin));
+  return privateRedirect(new URL("/login?error=invite", url.origin));
+}
+
+function privateRedirect(url: URL) {
+  const response = NextResponse.redirect(url);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
 }

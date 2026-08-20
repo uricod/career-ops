@@ -1,14 +1,23 @@
+import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { isSupabaseConfigured } from "./config";
+import { isSupabaseConfigured, supabasePublishableKey } from "./config";
+
+export function getCommunityServerSecret() {
+  return (
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    ""
+  );
+}
 
 export async function getSupabaseServerClient() {
   if (!isSupabaseConfigured()) return null;
   const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabasePublishableKey(),
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
@@ -52,14 +61,9 @@ export async function getCommunityMembership() {
 }
 
 export function getCommunityServiceClient() {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
-    return null;
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
+  const secretKey = getCommunityServerSecret();
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !secretKey) return null;
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, secretKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }

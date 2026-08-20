@@ -60,6 +60,7 @@ declare
   v_user uuid := auth.uid();
   v_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
   v_invite public.invitations%rowtype;
+  v_profile_updates integer;
 begin
   if v_user is null or v_email = '' then
     raise exception 'authentication_required' using errcode = '42501';
@@ -87,6 +88,10 @@ begin
       daily_token_limit = v_invite.daily_token_limit,
       updated_at = now()
   where id = v_user;
+  get diagnostics v_profile_updates = row_count;
+  if v_profile_updates <> 1 then
+    raise exception 'profile_not_found' using errcode = 'P0002';
+  end if;
 
   return true;
 end;

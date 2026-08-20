@@ -9,8 +9,15 @@ export const DEFAULT_DAILY_TOKEN_LIMIT = Number(
 
 export function isSupabaseConfigured() {
   return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_URL && supabasePublishableKey(),
+  );
+}
+
+export function supabasePublishableKey() {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    ""
   );
 }
 

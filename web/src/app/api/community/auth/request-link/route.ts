@@ -1,16 +1,46 @@
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { getCommunityServiceClient } from "@/lib/community/supabase-server";
-import { publicSiteUrl } from "@/lib/community/config";
+import {
+  getCommunityServerSecret,
+  getCommunityServiceClient,
+} from "@/lib/community/supabase-server";
+import { publicSiteUrl, supabasePublishableKey } from "@/lib/community/config";
+import {
+  clientAddress,
+  isSameOriginMutation,
+  privateJson,
+  rateLimitKey,
+} from "@/lib/community/security.mjs";
 
 export const runtime = "nodejs";
 
+async function consumeLimit(
+  service: NonNullable<ReturnType<typeof getCommunityServiceClient>>,
+  keyHash: string,
+  limit: number,
+) {
+  const { data, error } = await service.rpc("consume_auth_attempt", {
+    p_key_hash: keyHash,
+    p_limit: limit,
+    p_window_seconds: 900,
+  });
+  const result = Array.isArray(data) ? data[0] : data;
+  if (error || !result) return { unavailable: true, allowed: false, retry: 0 };
+  return {
+    unavailable: false,
+    allowed: result.allowed === true,
+    retry: Math.max(1, Number(result.retry_after_seconds || 1)),
+  };
+}
+
 export async function POST(request: Request) {
+  if (!isSameOriginMutation(request))
+    return privateJson({ error: "Request origin rejected." }, 403);
   let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "Invalid request." }, { status: 400 });
+    return privateJson({ error: "Invalid request." }, 400);
   }
 
   const email = String(body.email || "")
@@ -18,26 +48,42 @@ export async function POST(request: Request) {
     .toLowerCase();
   const invite = String(body.invite || "").trim();
   if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 320)
-    return Response.json(
-      { error: "Enter the invited email." },
-      { status: 400 },
-    );
+    return privateJson({ error: "Enter the invited email." }, 400);
   if (invite.length < 24 || invite.length > 200)
-    return Response.json(
-      { error: "Enter a valid invitation code." },
-      { status: 400 },
-    );
+    return privateJson({ error: "Enter a valid invitation code." }, 400);
 
   const service = getCommunityServiceClient();
+  const publishableKey = supabasePublishableKey();
+  const limitSecret =
+    process.env.COMMUNITY_RATE_LIMIT_SECRET || getCommunityServerSecret();
   if (
     !service ||
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    !publishableKey ||
+    !limitSecret
   )
-    return Response.json(
-      { error: "Invitation service is not configured." },
-      { status: 503 },
+    return privateJson({ error: "Invitation service is not configured." }, 503);
+
+  const address = clientAddress(request);
+  const [addressLimit, identityLimit] = await Promise.all([
+    consumeLimit(service, rateLimitKey(limitSecret, "auth-ip", address), 30),
+    consumeLimit(
+      service,
+      rateLimitKey(limitSecret, "auth-identity", address, email),
+      6,
+    ),
+  ]);
+  if (addressLimit.unavailable || identityLimit.unavailable)
+    return privateJson(
+      { error: "Invitation checks are temporarily unavailable." },
+      503,
     );
+  if (!addressLimit.allowed || !identityLimit.allowed) {
+    const retry = Math.max(addressLimit.retry, identityLimit.retry);
+    return privateJson({ error: "Too many attempts. Try again later." }, 429, {
+      "Retry-After": String(retry),
+    });
+  }
 
   const codeHash = createHash("sha256").update(invite).digest("hex");
   const { data: invitation } = await service
@@ -57,15 +103,12 @@ export async function POST(request: Request) {
         .from("invitations")
         .update({ status: "expired" })
         .eq("id", invitation.id);
-    return Response.json(
-      { error: "That invitation is unavailable." },
-      { status: 403 },
-    );
+    return privateJson({ error: "That invitation is unavailable." }, 403);
   }
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    publishableKey,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
   const callback = new URL("/auth/callback", publicSiteUrl());
@@ -76,10 +119,10 @@ export async function POST(request: Request) {
     options: { shouldCreateUser: false, emailRedirectTo: callback.toString() },
   });
   if (error)
-    return Response.json(
+    return privateJson(
       { error: "The private sign-in link could not be sent." },
-      { status: 502 },
+      502,
     );
 
-  return Response.json({ ok: true });
+  return privateJson({ ok: true });
 }
