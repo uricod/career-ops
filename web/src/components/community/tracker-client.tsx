@@ -20,7 +20,11 @@ const statuses: CommunityApplication["status"][] = [
 function safeUrl(value: string) {
   try {
     const url = new URL(value);
-    return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
+    return ["http:", "https:"].includes(url.protocol) &&
+      !url.username &&
+      !url.password
+      ? url.toString()
+      : null;
   } catch {
     return null;
   }
@@ -229,7 +233,7 @@ export function TrackerClient() {
                       {item.title || "Untitled role"}
                     </h2>
                     <a
-                      href={item.job_url}
+                      href={safeUrl(item.job_url) ?? undefined}
                       target="_blank"
                       rel="noreferrer"
                       aria-label="Open original job"

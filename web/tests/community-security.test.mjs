@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   clientAddress,
+  isInvitationEmail,
   isSameOriginMutation,
   privateJson,
   rateLimitKey,
@@ -88,6 +89,23 @@ test("login throttling prefers Vercel's trusted client address", () => {
     },
   });
   assert.equal(clientAddress(request), "203.0.113.7");
+});
+
+test("invitation email validation is bounded and cannot backtrack", () => {
+  for (const valid of [
+    "member@example.org",
+    "first.last+jobs@community.example",
+  ])
+    assert.equal(isInvitationEmail(valid), true);
+  for (const invalid of [
+    "member@example",
+    "member@@example.org",
+    ".member@example.org",
+    "member@-example.org",
+    "member@javascript:alert.example",
+    `${"a".repeat(321)}@example.org`,
+  ])
+    assert.equal(isInvitationEmail(invalid), false, invalid);
 });
 
 test("database policies require active membership, not ownership alone", () => {

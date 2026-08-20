@@ -5,6 +5,7 @@ import {
 } from "@/lib/community/supabase-server";
 import { publicSiteUrl } from "@/lib/community/config";
 import {
+  isInvitationEmail,
   isSameOriginMutation,
   privateJson,
 } from "@/lib/community/security.mjs";
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     100_000,
   );
   const expiresInDays = boundedInteger(body.expiresInDays, 7, 1, 30);
-  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 320)
+  if (!isInvitationEmail(email))
     return privateJson({ error: "Enter a valid email." }, 400);
 
   const { data: pending } = await context.service

@@ -7,6 +7,7 @@ import {
 import { publicSiteUrl, supabasePublishableKey } from "@/lib/community/config";
 import {
   clientAddress,
+  isInvitationEmail,
   isSameOriginMutation,
   privateJson,
   rateLimitKey,
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     .trim()
     .toLowerCase();
   const invite = String(body.invite || "").trim();
-  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 320)
+  if (!isInvitationEmail(email))
     return privateJson({ error: "Enter the invited email." }, 400);
   if (invite.length < 24 || invite.length > 200)
     return privateJson({ error: "Enter a valid invitation code." }, 400);
