@@ -2,7 +2,7 @@ export const COMMUNITY_MODE =
   process.env.NEXT_PUBLIC_CAREER_OPS_MODE === "community";
 
 export const COMMUNITY_NAME =
-  process.env.NEXT_PUBLIC_COMMUNITY_NAME || "Career Ops Community";
+  process.env.NEXT_PUBLIC_COMMUNITY_NAME || "The Commons";
 export const DEFAULT_DAILY_TOKEN_LIMIT = Number(
   process.env.NEXT_PUBLIC_COMMUNITY_DAILY_TOKEN_LIMIT || 20_000,
 );
@@ -10,7 +10,7 @@ export const DEFAULT_DAILY_TOKEN_LIMIT = Number(
 export function isSupabaseConfigured() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
 }
 

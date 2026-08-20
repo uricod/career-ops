@@ -5,13 +5,22 @@ import { TodayDashboard } from "@/components/home/today-dashboard";
 import { CommunityLanding } from "@/components/community/community-landing";
 import { COMMUNITY_MODE } from "@/lib/community/config";
 import { getCommunityUser } from "@/lib/community/supabase-server";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic"; // always read fresh local files at request time (never at build — CI has no user data)
 
 export default async function Home() {
   if (COMMUNITY_MODE) {
-    const { user } = await getCommunityUser();
-    return <CommunityLanding signedIn={Boolean(user)} />;
+    const { supabase, user } = await getCommunityUser();
+    if (supabase && user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("membership_status")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profile?.membership_status === "active") redirect("/community");
+    }
+    return <CommunityLanding />;
   }
   const { phase, onboardingNeeded } = doctorState();
   // First run (truly empty install): the CV-upload takeover IS the home — value

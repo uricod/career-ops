@@ -5,110 +5,160 @@ import Link from "next/link";
 import {
   ArrowLeft,
   CheckCircle2,
+  KeyRound,
   LoaderCircle,
   Mail,
-  ShieldCheck,
 } from "lucide-react";
-import { CoMark } from "@/components/co-mark";
-import { getSupabaseBrowserClient } from "@/lib/community/supabase-browser";
+import { COMMUNITY_NAME } from "@/lib/community/config";
 
-export function LoginForm() {
-  const [email, setEmail] = useState("");
+export function LoginForm({
+  initialInvite = "",
+  initialEmail = "",
+  initialError = "",
+}: {
+  initialInvite?: string;
+  initialEmail?: string;
+  initialError?: string;
+}) {
+  const [email, setEmail] = useState(initialEmail);
+  const [invite, setInvite] = useState(initialInvite);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    initialError === "invite"
+      ? "That invitation is missing, expired, or no longer active."
+      : initialError === "auth"
+        ? "The sign-in link could not be verified. Please request a new one."
+        : "",
+  );
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError("");
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) {
-      setMessage(
-        "Cloud sign-in is not configured in this preview. You can still browse jobs and try the private zero-token fit check.",
+    try {
+      const response = await fetch("/api/community/auth/request-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, invite }),
+      });
+      const body = await response.json();
+      if (!response.ok)
+        throw new Error(body.error || "Invitation unavailable.");
+      setMessage("Check your inbox. The private sign-in link expires shortly.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Invitation unavailable.",
       );
+    } finally {
       setBusy(false);
-      return;
     }
-    const redirectTo = `${window.location.origin}/auth/callback?next=/community`;
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo },
-    });
-    if (error) setError(error.message);
-    else setMessage("Check your inbox for a secure sign-in link.");
-    setBusy(false);
   }
+
   return (
-    <div className="relative grid min-h-screen place-items-center px-5 py-12">
-      <div className="absolute inset-0 dot-bg opacity-70" />
-      <div className="absolute left-1/2 top-[-18rem] size-[38rem] -translate-x-1/2 rounded-full bg-brand/15 blur-3xl" />
-      <div className="relative w-full max-w-md rounded-[2rem] border border-border bg-surface/95 p-7 shadow-2xl backdrop-blur sm:p-9">
+    <main className="grid min-h-screen bg-[#f4f2ed] text-[#181815] dark:bg-[#10100f] dark:text-[#f2f0e9] lg:grid-cols-[.85fr_1.15fr]">
+      <section className="flex flex-col border-b border-black/10 p-6 dark:border-white/10 lg:border-b-0 lg:border-r lg:p-10">
         <Link
-          href="/community"
-          className="inline-flex items-center gap-1.5 text-xs text-faint hover:text-foreground"
+          href="/"
+          className="inline-flex items-center gap-2 text-xs text-black/45 hover:text-black dark:text-white/45 dark:hover:text-white"
         >
-          <ArrowLeft className="size-3.5" />
-          Back home
+          <ArrowLeft className="size-3.5" /> Back
         </Link>
-        <div className="mt-7 flex items-center gap-3">
-          <CoMark size={38} />
-          <div>
-            <div className="font-serif text-2xl text-landing">career-ops</div>
-            <div className="text-[10px] font-bold uppercase tracking-[.2em] text-brand-text">
-              community
-            </div>
-          </div>
+        <div className="mt-auto hidden pb-4 lg:block">
+          <p className="text-sm font-semibold">{COMMUNITY_NAME}</p>
+          <p className="mt-2 max-w-xs text-xs leading-5 text-black/45 dark:text-white/45">
+            Access is issued individually and can be withdrawn by a community
+            administrator.
+          </p>
         </div>
-        <h1 className="mt-8 font-serif text-4xl text-landing">Welcome in.</h1>
-        <p className="mt-3 text-sm leading-6 text-muted">
-          No password to remember. We’ll email you a one-time secure link.
-        </p>
-        {message ? (
-          <div className="mt-7 rounded-2xl bg-emerald-500/10 p-4 text-sm leading-6 text-emerald-700">
-            <CheckCircle2 className="mb-2 size-5" />
-            {message}
-          </div>
-        ) : (
-          <form onSubmit={submit} className="mt-7">
-            <label className="text-sm font-semibold">
-              Email address
-              <div className="mt-2 flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-background px-4 focus-within:border-brand">
-                <Mail className="size-4 text-faint" />
+      </section>
+
+      <section className="flex items-center px-6 py-14 sm:px-12 lg:px-20">
+        <div className="w-full max-w-md">
+          <p className="text-xs font-semibold uppercase tracking-[.2em] text-black/40 dark:text-white/40">
+            Member access
+          </p>
+          <h1 className="mt-4 font-serif text-5xl leading-none tracking-tight">
+            Use your invitation.
+          </h1>
+          <p className="mt-4 text-sm leading-6 text-black/55 dark:text-white/55">
+            Enter the email address and code from your invitation. There are no
+            public registrations.
+          </p>
+
+          {message ? (
+            <div className="mt-8 rounded-2xl border border-emerald-600/20 bg-emerald-600/10 p-5 text-sm leading-6 text-emerald-800 dark:text-emerald-300">
+              <CheckCircle2 className="mb-3 size-5" />
+              {message}
+            </div>
+          ) : (
+            <form onSubmit={submit} className="mt-8 space-y-4">
+              <Field icon={Mail} label="Invited email">
                 <input
                   type="email"
                   required
                   autoComplete="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => setEmail(event.target.value)}
                   className="w-full bg-transparent text-sm outline-none"
                   placeholder="you@example.org"
                 />
-              </div>
-            </label>
-            <button
-              disabled={busy}
-              className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-brand font-bold text-brand-foreground hover:bg-brand-200 disabled:opacity-60"
-            >
-              {busy ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
-                <Mail className="size-4" />
+              </Field>
+              <Field icon={KeyRound} label="Invitation code">
+                <input
+                  required
+                  minLength={24}
+                  maxLength={200}
+                  autoComplete="one-time-code"
+                  value={invite}
+                  onChange={(event) => setInvite(event.target.value.trim())}
+                  className="w-full bg-transparent font-mono text-sm outline-none"
+                  placeholder="Paste private code"
+                />
+              </Field>
+              <button
+                disabled={busy}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#181815] px-5 text-sm font-semibold text-white transition hover:opacity-85 disabled:opacity-50 dark:bg-[#f2f0e9] dark:text-[#181815]"
+              >
+                {busy ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Mail className="size-4" />
+                )}
+                {busy ? "Checking…" : "Send private sign-in link"}
+              </button>
+              {error && (
+                <p
+                  role="alert"
+                  className="text-sm text-rose-700 dark:text-rose-400"
+                >
+                  {error}
+                </p>
               )}
-              {busy ? "Sending…" : "Email me a sign-in link"}
-            </button>
-            {error && (
-              <p role="alert" className="mt-3 text-sm text-rose-600">
-                {error}
-              </p>
-            )}
-          </form>
-        )}
-        <div className="mt-7 flex gap-2 border-t border-border pt-5 text-xs leading-5 text-faint">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-500" />
-          Your email is used for account access and service notices—not sold or
-          used for recruiter marketing.
+            </form>
+          )}
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
+  );
+}
+
+function Field({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: typeof Mail;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block text-xs font-semibold">
+      {label}
+      <span className="mt-2 flex min-h-12 items-center gap-3 rounded-xl border border-black/15 bg-white/45 px-4 focus-within:border-black/45 dark:border-white/15 dark:bg-white/[.04] dark:focus-within:border-white/45">
+        <Icon className="size-4 shrink-0 text-black/35 dark:text-white/35" />
+        {children}
+      </span>
+    </label>
   );
 }

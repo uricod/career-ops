@@ -8,6 +8,7 @@ export type CommunityProfile = {
   salary_max: number | null;
   include_community_sources: boolean;
   daily_token_limit: number;
+  membership_status: "invited" | "active" | "suspended";
 };
 
 export type CommunityApplication = {

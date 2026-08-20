@@ -6,17 +6,17 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: COMMUNITY_MODE
-    ? "Career Ops Community — a free, focused job search"
+    ? "The Commons — private access"
     : "career-ops — official web experience",
   description: COMMUNITY_MODE
-    ? "Free, privacy-minded job discovery, fit checks, and application tracking for the community."
+    ? "A private community workspace. Membership is by invitation."
     : "The official, local-first web experience for career-ops.",
   // Home-screen / standalone (iOS): let our theme-color flow up to the status bar
   // + Dynamic Island; safe-area insets handle the layout.
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: COMMUNITY_MODE ? "Career Ops Community" : "career-ops",
+    title: COMMUNITY_MODE ? "The Commons" : "career-ops",
   },
 };
 

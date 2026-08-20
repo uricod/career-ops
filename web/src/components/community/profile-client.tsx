@@ -14,6 +14,7 @@ const empty: Omit<CommunityProfile, "id" | "daily_token_limit"> = {
   salary_min: null,
   salary_max: null,
   include_community_sources: true,
+  membership_status: "active",
 };
 function list(value: string) {
   return value
@@ -29,6 +30,7 @@ export function ProfileClient() {
     ...empty,
     id: "demo",
     daily_token_limit: 20000,
+    membership_status: "active",
   } as CommunityProfile);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -75,7 +77,12 @@ export function ProfileClient() {
       return;
     }
     if (supabase && profile.id !== "demo") {
-      const { id: _id, daily_token_limit: _limit, ...preferences } = profile;
+      const {
+        id: _id,
+        daily_token_limit: _limit,
+        membership_status: _membership,
+        ...preferences
+      } = profile;
       const { error } = await supabase
         .from("profiles")
         .update(preferences)
@@ -90,7 +97,7 @@ export function ProfileClient() {
   }
   async function logout() {
     if (supabase) await supabase.auth.signOut();
-    window.location.href = "/community";
+    window.location.href = "/";
   }
   if (loading)
     return (

@@ -3,85 +3,67 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3,
-  BriefcaseBusiness,
-  ClipboardCheck,
+  CircleUserRound,
+  Compass,
   Gauge,
-  HeartHandshake,
-  Search,
-  UserRound,
+  ListTodo,
+  ScanSearch,
 } from "lucide-react";
-import { CoMark } from "@/components/co-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { COMMUNITY_NAME } from "@/lib/community/config";
 import { cn } from "@/lib/cn";
 import { CommunityAuthButton } from "./community-auth-button";
 
 const items = [
-  { href: "/community", label: "Home", icon: HeartHandshake },
-  { href: "/community/jobs", label: "Find jobs", icon: Search },
-  { href: "/community/tracker", label: "My jobs", icon: BriefcaseBusiness },
-  { href: "/community/fit", label: "Fit check", icon: ClipboardCheck },
-  { href: "/community/usage", label: "Usage", icon: Gauge },
-  { href: "/community/profile", label: "Profile", icon: UserRound },
+  { href: "/community/jobs", label: "Discover", icon: Compass },
+  { href: "/community/tracker", label: "Board", icon: ListTodo },
+  { href: "/community/fit", label: "Review", icon: ScanSearch },
+  { href: "/community/usage", label: "Allowance", icon: Gauge },
+  { href: "/community/profile", label: "Account", icon: CircleUserRound },
 ];
 
 export function CommunityShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAuth = pathname.startsWith("/login") || pathname.startsWith("/auth/");
-  if (isAuth)
-    return <main className="min-h-screen overflow-hidden">{children}</main>;
+  const isPublic =
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/auth/");
+  if (isPublic) return <>{children}</>;
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/88 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-5 px-4 sm:px-6">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/92 backdrop-blur-xl">
+        <div className="mx-auto flex h-15 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Link
             href="/community"
-            className="flex shrink-0 items-center gap-2.5"
-            aria-label="Career Ops Community home"
+            className="shrink-0 text-sm font-semibold tracking-tight"
           >
-            <CoMark size={31} />
-            <span className="font-serif text-xl tracking-tight text-landing">
-              career-ops
-            </span>
-            <span className="hidden rounded-full border border-brand/30 bg-brand-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-brand-text sm:inline">
-              community
-            </span>
+            {COMMUNITY_NAME}
           </Link>
           <nav
-            className="ml-auto hidden items-center gap-1 lg:flex"
-            aria-label="Community navigation"
+            className="hidden items-center gap-1 md:flex"
+            aria-label="Workspace"
           >
-            {items.map(({ href, label, icon: Icon }) => {
+            {items.map(({ href, label }) => {
               const active =
-                pathname === href ||
-                (href !== "/community" && pathname.startsWith(`${href}/`));
+                pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <Link
                   key={href}
                   href={href}
                   className={cn(
-                    "flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition",
+                    "rounded-lg px-3 py-2 text-xs font-medium transition",
                     active
-                      ? "bg-brand-soft text-brand-text"
+                      ? "bg-foreground text-background"
                       : "text-muted hover:bg-surface hover:text-foreground",
                   )}
                 >
-                  <Icon className="size-4" />
                   {label}
                 </Link>
               );
             })}
           </nav>
-          <div className="ml-auto flex items-center gap-2 lg:ml-2">
-            <Link
-              href="/community/admin"
-              className="hidden rounded-full p-2 text-faint transition hover:bg-surface hover:text-foreground sm:inline-flex"
-              title="Nonprofit admin"
-              aria-label="Nonprofit admin"
-            >
-              <BarChart3 className="size-4" />
-            </Link>
+          <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
             <CommunityAuthButton />
           </div>
@@ -89,30 +71,26 @@ export function CommunityShell({ children }: { children: React.ReactNode }) {
       </header>
       <main>{children}</main>
       <nav
-        className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-around rounded-2xl border border-border bg-surface/95 p-1.5 shadow-2xl backdrop-blur-xl lg:hidden"
-        aria-label="Mobile community navigation"
+        className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 rounded-2xl border border-border bg-surface/95 p-1.5 shadow-2xl backdrop-blur-xl md:hidden"
+        aria-label="Workspace"
       >
-        {items.slice(0, 5).map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
               className={cn(
-                "flex min-h-12 min-w-14 flex-col items-center justify-center gap-0.5 rounded-xl px-2 text-[10px] font-medium",
-                active ? "bg-brand-soft text-brand-text" : "text-faint",
+                "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[9px] font-medium",
+                active ? "bg-foreground text-background" : "text-faint",
               )}
             >
-              <Icon className="size-[18px]" />
+              <Icon className="size-4" />
               {label}
             </Link>
           );
         })}
       </nav>
-      <footer className="border-t border-border px-4 pb-28 pt-10 text-center text-xs text-faint lg:pb-10">
-        Free, privacy-minded job search for the community · We never submit
-        applications for you.
-      </footer>
     </div>
   );
 }

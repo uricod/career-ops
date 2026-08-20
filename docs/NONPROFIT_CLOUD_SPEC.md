@@ -6,7 +6,7 @@ Deployment: Vercel (`web/`) + Supabase Auth/Postgres
 
 ## Mission
 
-Give job seekers a free, calm, privacy-respecting place to discover roles, assess fit, and keep a small application pipeline. Community mode is a public benefit layer over career-ops; it does not replace or weaken the existing local-first CLI.
+Give invited community members a free, calm, privacy-respecting place to discover roles, assess fit, and keep a small application pipeline. Community mode is a private public-benefit service over career-ops; it does not replace or weaken the existing local-first CLI.
 
 The service optimizes for a small number of good applications. It never submits an application, never invents candidate facts, and never classifies a person or employer by religion. Orthodox/Frum job sources are an explicit, user-selected source collection.
 
@@ -22,9 +22,9 @@ The service optimizes for a small number of good applications. It never submits 
 
 ### Visitor
 
-- Understand the nonprofit mission and privacy model.
-- Browse the verified job-source directory without an account.
-- Open every source on its original site; Career Ops never impersonates the source.
+- See only a minimal, non-descriptive private-access page.
+- Enter an email-bound invitation code or follow a private invitation link.
+- Never browse product functions, sources, member data, or admin surfaces.
 
 ### Member
 
@@ -38,6 +38,8 @@ The service optimizes for a small number of good applications. It never submits 
 
 ### Nonprofit administrator
 
+- Create email-bound, expiring, single-use invitations and copy their private links.
+- Revoke pending invitations and suspend/reactivate members.
 - See aggregate users, requests, tokens, and estimated cost only.
 - Change a member's daily limit within the organization ceiling.
 - Suspend abusive access without reading resumes, job descriptions, or AI output.
@@ -67,8 +69,9 @@ The hosted AI route sends user-supplied CV/JD text to the model for the current 
 
 ```text
 Browser
-  ├─ public source directory (no login)
+  ├─ minimal public invitation gate
   ├─ Supabase Auth session (httpOnly cookie via SSR helper)
+  ├─ active-membership check on every private page/API
   ├─ profile + saved jobs (RLS-scoped CRUD)
   └─ transient fit-check request
        └─ Vercel route
@@ -79,6 +82,7 @@ Browser
 
 Supabase
   ├─ profiles
+  ├─ invitations (hashed code, email, expiry, state)
   ├─ applications
   ├─ usage_buckets
   ├─ usage_events
@@ -120,6 +124,8 @@ Source entries are curated links, not copied listings. Before any future ingesti
 - Service-role key is server-only and not required by normal member flows.
 - Security-definer quota functions use an empty `search_path`, schema-qualified references, explicit grants, and authenticated identity checks.
 - Admin access derives from a private `app_metadata.role=admin` claim or an explicit server allowlist; members cannot self-promote.
+- Invitation codes are stored only as SHA-256 hashes, bound to one normalized email, expire, and are redeemed once.
+- The service-role key is required only by server-side invitation administration and is never exposed to clients.
 - No HTML from a job description is rendered; output is structured JSON and React-escaped.
 - URL validation permits only `http`/`https` saved jobs.
 - CSP/security headers, frame denial, referrer policy, and permissions policy are set by Next.js.
@@ -141,6 +147,7 @@ Required in hosted mode:
 - `NEXT_PUBLIC_CAREER_OPS_MODE=community`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 - `OPENAI_API_KEY`
 
 Recommended:
@@ -151,21 +158,21 @@ Recommended:
 - `COMMUNITY_ADMIN_EMAILS`
 - `NEXT_PUBLIC_SITE_URL`
 
-Run `supabase/migrations/202608200001_community.sql`, add the production and preview callback URLs in Supabase Auth, set Vercel's Root Directory to `web`, then deploy.
+Run both Supabase migrations, add the production and preview callback URLs in Supabase Auth, set Vercel's Root Directory to `web`, then deploy.
 
 ## Definition of done
 
 - Local career-ops builds and tests still pass.
 - Community mode builds with and without configured cloud credentials.
-- Public source directory works without auth.
-- Magic-link auth, RLS profile/application CRUD, fit evaluation, usage display, and quota denial work against Supabase.
+- Public routes reveal no job-search or application functionality.
+- Invitation creation/revocation/redemption, magic-link auth, active-member gating, RLS profile/application CRUD, fit evaluation, usage display, and quota denial work against Supabase.
 - No CV/JD/output text appears in database telemetry or logs.
 - A clean Vercel build succeeds from `web/`.
 - Admin aggregate page reveals no member content.
 
 ## Deliberate follow-ons
 
-- Partner-approved RSS/API ingestion with source-specific adapters.
+- Additional partner-approved RSS/API ingestion with source-specific adapters.
 - Community organization sponsorships and pooled monthly budgets.
 - Multilingual UI and RTL QA.
 - Accessible PDF generation in an isolated worker.

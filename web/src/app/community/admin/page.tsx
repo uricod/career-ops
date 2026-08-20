@@ -1,72 +1,79 @@
-import { BarChart3, Coins, ShieldAlert, Users } from "lucide-react";
-import { getCommunityUser } from "@/lib/community/supabase-server";
+import { notFound } from "next/navigation";
+import { Activity, Coins, Users } from "lucide-react";
+import { AdminConsole } from "@/components/community/admin-console";
+import {
+  getCommunityMembership,
+  getCommunityServiceClient,
+} from "@/lib/community/supabase-server";
 
 export const dynamic = "force-dynamic";
+
 export default async function AdminPage() {
-  const { supabase, user } = await getCommunityUser();
-  let summary: {
-    member_count: number;
-    request_count: number;
-    total_tokens: number;
-    estimated_microusd: number;
-  } | null = null;
-  if (supabase && user) {
-    const { data } = await supabase.rpc("admin_usage_summary", { p_days: 30 });
-    summary = Array.isArray(data) ? data[0] : data;
-  }
-  if (!summary)
-    return (
-      <div className="mx-auto max-w-3xl px-5 py-20">
-        <ShieldAlert className="size-8 text-brand" />
-        <h1 className="mt-5 font-serif text-4xl text-landing">
-          Nonprofit admin
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-muted">
-          This aggregate-only view requires an authenticated user with{" "}
-          <code className="rounded bg-surface px-1.5 py-0.5">
-            app_metadata.role=admin
-          </code>
-          . Member resumes, job descriptions, prompts, and model answers are
-          never available here.
-        </p>
-      </div>
-    );
-  const cost = Number(summary.estimated_microusd || 0) / 1_000_000;
+  const membership = await getCommunityMembership();
+  if (!membership.active || !membership.admin || !membership.supabase)
+    notFound();
+  const service = getCommunityServiceClient();
+  if (!service) notFound();
+
+  const [{ data: invitations }, { data: profiles }, usersPage, summaryResult] =
+    await Promise.all([
+      service
+        .from("invitations")
+        .select("id,email,status,daily_token_limit,expires_at,created_at")
+        .order("created_at", { ascending: false })
+        .limit(100),
+      service
+        .from("profiles")
+        .select("id,membership_status,daily_token_limit,created_at")
+        .order("created_at", { ascending: false }),
+      service.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      membership.supabase.rpc("admin_usage_summary", { p_days: 30 }),
+    ]);
+  const emails = new Map(
+    (usersPage.data?.users || []).map((user) => [user.id, user.email || ""]),
+  );
+  const members = (profiles || []).map((profile) => ({
+    ...profile,
+    email: emails.get(profile.id) || "Unknown member",
+  }));
+  const summary = Array.isArray(summaryResult.data)
+    ? summaryResult.data[0]
+    : summaryResult.data;
+  const cost = Number(summary?.estimated_microusd || 0) / 1_000_000;
+
   return (
-    <div className="mx-auto max-w-5xl px-5 py-10">
-      <p className="text-xs font-bold uppercase tracking-[.2em] text-brand-text">
-        Last 30 days · aggregate only
+    <div className="mx-auto max-w-6xl px-5 py-12 pb-28 sm:px-8">
+      <p className="text-xs font-semibold uppercase tracking-[.2em] text-faint">
+        Administration
       </p>
-      <h1 className="mt-2 font-serif text-5xl text-landing">Nonprofit admin</h1>
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        <Tile
+      <h1 className="mt-3 font-serif text-5xl text-landing">
+        Community control
+      </h1>
+      <div className="mt-8 grid gap-3 sm:grid-cols-3">
+        <Stat
           icon={Users}
           label="Members"
-          value={Number(summary.member_count).toLocaleString()}
+          value={String(summary?.member_count || 0)}
         />
-        <Tile
-          icon={BarChart3}
-          label="AI requests"
-          value={Number(summary.request_count).toLocaleString()}
+        <Stat
+          icon={Activity}
+          label="Requests · 30d"
+          value={String(summary?.request_count || 0)}
         />
-        <Tile
+        <Stat
           icon={Coins}
-          label="Estimated model cost"
+          label="Estimated cost · 30d"
           value={`$${cost.toFixed(2)}`}
         />
       </div>
-      <div className="mt-6 rounded-3xl border border-border bg-surface p-6">
-        <h2 className="font-semibold">Budget posture</h2>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          {Number(summary.total_tokens).toLocaleString()} total tokens were
-          used. Limits are enforced before model calls through atomic daily
-          reservations, then reconciled to actual usage.
-        </p>
+      <div className="mt-12">
+        <AdminConsole invitations={invitations || []} members={members} />
       </div>
     </div>
   );
 }
-function Tile({
+
+function Stat({
   icon: Icon,
   label,
   value,
@@ -76,10 +83,10 @@ function Tile({
   value: string;
 }) {
   return (
-    <div className="rounded-3xl border border-border bg-surface p-6">
-      <Icon className="size-5 text-brand" />
-      <div className="mt-5 text-3xl font-semibold">{value}</div>
-      <div className="mt-1 text-xs text-muted">{label}</div>
+    <div className="rounded-2xl border border-border bg-surface p-5">
+      <Icon className="size-4 text-faint" />
+      <p className="mt-5 text-2xl font-semibold">{value}</p>
+      <p className="mt-1 text-xs text-muted">{label}</p>
     </div>
   );
 }

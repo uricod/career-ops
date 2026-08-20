@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { getCommunityUser } from "@/lib/community/supabase-server";
+import { getCommunityMembership } from "@/lib/community/supabase-server";
 import { heuristicEvaluation } from "@/lib/community/heuristic";
 import type { FitEvaluation } from "@/lib/community/types";
 
@@ -71,17 +71,21 @@ export async function POST(request: Request) {
       { status: 413 },
     );
 
-  const { supabase, user } = await getCommunityUser();
+  const { supabase, user, active } = await getCommunityMembership();
   if (!supabase)
-    return Response.json({
-      evaluation: heuristicEvaluation(job, resume),
-      usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
-      mode: "private-fallback",
-    });
+    return Response.json(
+      { error: "Invitation service is not configured." },
+      { status: 503 },
+    );
   if (!user)
     return Response.json(
       { error: "Sign in to use the nonprofit AI allowance." },
       { status: 401 },
+    );
+  if (!active)
+    return Response.json(
+      { error: "An active invitation is required." },
+      { status: 403 },
     );
   if (!process.env.OPENAI_API_KEY)
     return Response.json({

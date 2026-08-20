@@ -5,19 +5,24 @@ The hosted app is the existing Next.js app in `web/`, switched into its cloud-sa
 ## 1. Create Supabase
 
 1. Create a Supabase project in the region closest to the primary community.
-2. Run `supabase/migrations/202608200001_community.sql` in the SQL editor, or link the CLI and run `supabase db push`.
+2. Run both migrations in order, or link the CLI and run `supabase db push`:
+   - `supabase/migrations/202608200001_community.sql`
+   - `supabase/migrations/202608210001_invite_only.sql`
 3. Copy the Project URL and anon/publishable key.
 4. In Authentication → URL Configuration, set the Site URL to the production domain and allow:
    - `http://localhost:3000/auth/callback`
    - `https://YOUR_DOMAIN/auth/callback`
    - the Vercel preview callback pattern you intentionally trust
 5. Configure custom SMTP before a broad public launch so magic links do not depend on the default development sender.
-6. Grant an administrator with server-side admin tooling, never from the browser:
+6. Create the first Auth user in the Supabase dashboard, then grant the administrator claim with server-side admin tooling and set that profile active. Never expose the service-role key in the browser:
 
    ```js
    await supabase.auth.admin.updateUserById(userId, {
-     app_metadata: { role: "admin" },
+     app_metadata: { role: "admin", invited: true },
    });
+   await supabase.from("profiles").update({
+     membership_status: "active",
+   }).eq("id", userId);
    ```
 
 ## 2. Configure Vercel
@@ -31,10 +36,11 @@ NEXT_PUBLIC_CAREER_OPS_MODE=community
 NEXT_PUBLIC_SITE_URL=https://YOUR_DOMAIN
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 OPENAI_API_KEY=...
 ```
 
-Keep `OPENAI_API_KEY` server-only. Do not create a `NEXT_PUBLIC_` variant.
+Keep `OPENAI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` server-only. Do not create `NEXT_PUBLIC_` variants.
 
 Recommended budget baseline:
 
@@ -61,12 +67,14 @@ NEXT_PUBLIC_CAREER_OPS_MODE=community npm run build
 
 Then verify in production:
 
-1. Magic-link sign-in returns to `/community`.
-2. Profile and tracker rows are invisible between two test users.
-3. A fit check creates one completed `usage_events` row without document text.
-4. Lower a test member's limit and confirm the route returns HTTP 429 before an API call.
-5. Admin aggregates work only after the admin claim is present in a newly refreshed session.
-6. Sign out, mobile navigation, keyboard focus, light/dark themes, and external-source links work.
+1. `/`, `/login`, and the invitation request endpoint are the only public Community surfaces.
+2. `/community`, `/community/jobs`, and protected APIs redirect or return 401/403 without an active invitation.
+3. Create an invitation in `/community/admin`, copy its private link, and confirm that only the bound email can redeem it.
+4. Confirm the same invitation cannot be redeemed twice and that revoke/suspend take effect immediately.
+5. Profile and tracker rows are invisible between two test users.
+6. A fit check creates one completed `usage_events` row without document text.
+7. Lower a test member's limit and confirm the route returns HTTP 429 before an API call.
+8. Sign out, mobile navigation, keyboard focus, light/dark themes, and original-source links work.
 
 ## 4. Nonprofit operations
 

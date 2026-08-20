@@ -1,6 +1,6 @@
 # career-ops web (alpha)
 
-> **Community cloud mode:** this same app now includes an opt-in, Vercel-safe nonprofit experience with Supabase authentication, a curated Orthodox/Frum and Jewish community job-source directory, a private tracker, transient fit checks, and database-enforced token limits. Set `NEXT_PUBLIC_CAREER_OPS_MODE=community`; see [`../docs/NONPROFIT_CLOUD_SPEC.md`](../docs/NONPROFIT_CLOUD_SPEC.md) and [`../docs/NONPROFIT_DEPLOY.md`](../docs/NONPROFIT_DEPLOY.md). Local-first mode remains the default.
+> **Community cloud mode:** this same app now includes an invite-only, Vercel-safe nonprofit workspace with Supabase authentication, administrator-issued access, a private tracker, transient fit checks, and database-enforced token limits. Its public surface intentionally does not advertise the underlying tools. Set `NEXT_PUBLIC_CAREER_OPS_MODE=community`; see [`../docs/NONPROFIT_CLOUD_SPEC.md`](../docs/NONPROFIT_CLOUD_SPEC.md) and [`../docs/NONPROFIT_DEPLOY.md`](../docs/NONPROFIT_DEPLOY.md). Local-first mode remains the default.
 
 An **experimental, opt-in web UI** for career-ops. It is a local-first *view* over
 the exact same files the CLI reads and writes (`data/pipeline.md`,

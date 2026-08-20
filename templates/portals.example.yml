@@ -2130,6 +2130,47 @@ tracked_companies:
 
 job_boards:
 
+  # ── Orthodox / Frum community boards ──────────────────────────────
+  # Public, zero-auth feeds/pages normalized by providers/frumjobs.mjs.
+  # Results enter the same data/pipeline.md flow as every ATS provider, so
+  # evaluation, CV generation and review-before-submit application assistance
+  # work unchanged. AllFrumJobs already aggregates some YidJob/Luach listings;
+  # scan.mjs URL dedup prevents the original URL from being queued twice.
+
+  - name: AllFrumJobs
+    careers_url: https://allfrumjobs.com/
+    provider: frumjobs
+    board: allfrum
+    enabled: true
+    notes: "Orthodox/Frum community aggregator; reads its documented RSS feed and emits canonical pages that link original sources."
+
+  - name: YidJob
+    careers_url: https://yidjob.com/Jobs
+    provider: frumjobs
+    board: yidjob
+    enabled: true
+    notes: "Direct-post Orthodox/Frum marketplace; public active-job feed."
+
+  - name: TrefAJob
+    careers_url: https://www.trefajob.com/
+    provider: frumjobs
+    board: trefajob
+    enabled: true
+    notes: "Frum American job platform; respects its /api robots exclusion and reads only allowed sitemap/detail pages."
+
+  - name: Luach.com Jobs
+    careers_url: https://luach.com/full-time-jobs
+    provider: frumjobs
+    board: luach
+    sections:
+      - full-time-jobs
+      - part-time-jobs
+      - freelance-jobs
+      - one-time-jobs
+    max_pages: 2
+    enabled: true
+    notes: "Jewish community classifieds; reads public listing pages and keeps original posting URLs."
+
   # ── SolidJobs (Polish market) ──────────────────────────────────────
   # Public API — no auth needed. Division in URL path, campaign=career-ops for tracking.
   # Available divisions: it, engineering, marketing, sales, hr, logistics, finances, other

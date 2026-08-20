@@ -285,6 +285,7 @@ const SYSTEM_PATHS = [
   'batch-tailor.mjs',
   'dashboard/',
   'templates/',
+  'supabase/',
   'config/cv-facts.example.json',
   'fonts/',
   'examples/',
