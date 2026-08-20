@@ -2,10 +2,17 @@ import { pipelineSummary, doctorState } from "@/lib/career-ops";
 import { OnboardingBanner } from "@/components/onboarding-banner";
 import { FirstRunHome } from "@/components/home/first-run-home";
 import { TodayDashboard } from "@/components/home/today-dashboard";
+import { CommunityLanding } from "@/components/community/community-landing";
+import { COMMUNITY_MODE } from "@/lib/community/config";
+import { getCommunityUser } from "@/lib/community/supabase-server";
 
 export const dynamic = "force-dynamic"; // always read fresh local files at request time (never at build — CI has no user data)
 
-export default function Home() {
+export default async function Home() {
+  if (COMMUNITY_MODE) {
+    const { user } = await getCommunityUser();
+    return <CommunityLanding signedIn={Boolean(user)} />;
+  }
   const { phase, onboardingNeeded } = doctorState();
   // First run (truly empty install): the CV-upload takeover IS the home — value
   // before commitment. The full dashboard returns once they have a CV or any data.
@@ -18,7 +25,11 @@ export default function Home() {
   return (
     <>
       {onboardingNeeded && <OnboardingBanner />}
-      <TodayDashboard applications={applications} inbox={inbox} inBetween={phase === "in-between"} />
+      <TodayDashboard
+        applications={applications}
+        inbox={inbox}
+        inBetween={phase === "in-between"}
+      />
     </>
   );
 }

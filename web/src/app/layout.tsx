@@ -1,14 +1,23 @@
 import type { Metadata, Viewport } from "next";
 import { inter, instrumentSerif, instrumentSerifItalic } from "@/lib/fonts";
 import { AppShell } from "@/components/app-shell";
+import { COMMUNITY_MODE } from "@/lib/community/config";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "career-ops — official web experience",
-  description: "The official, local-first web experience for career-ops.",
+  title: COMMUNITY_MODE
+    ? "Career Ops Community — a free, focused job search"
+    : "career-ops — official web experience",
+  description: COMMUNITY_MODE
+    ? "Free, privacy-minded job discovery, fit checks, and application tracking for the community."
+    : "The official, local-first web experience for career-ops.",
   // Home-screen / standalone (iOS): let our theme-color flow up to the status bar
   // + Dynamic Island; safe-area insets handle the layout.
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "career-ops" },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: COMMUNITY_MODE ? "Career Ops Community" : "career-ops",
+  },
 };
 
 export const viewport: Viewport = {
@@ -25,7 +34,11 @@ export const viewport: Viewport = {
 // jarring light seam. Matches --bg (light #f7f6f3 / dark #0a0a0a).
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('career-ops:theme');var d=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement('meta');m.setAttribute('name','theme-color');document.head.appendChild(m);}m.setAttribute('content',d?'#0a0a0a':'#f7f6f3');}catch(e){document.documentElement.classList.add('dark');}})();`;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"
