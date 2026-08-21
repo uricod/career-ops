@@ -50,6 +50,17 @@ test("passwordless sign-in uses the cookie-backed SSR client for PKCE", () => {
   assert.doesNotMatch(route, /createClient\(/);
 });
 
+test("redeemed invitations can sign active returning members back in", () => {
+  const requestLink = read(
+    "web/src/app/api/community/auth/request-link/route.ts",
+  );
+  const callback = read("web/src/app/auth/callback/route.ts");
+  assert.match(requestLink, /invitation\?\.status === "redeemed"/);
+  assert.match(requestLink, /profile\?\.membership_status === "active"/);
+  assert.match(callback, /supabase\.rpc\(\s*"is_active_member"/);
+  assert.match(callback, /active === true/);
+});
+
 test("cookie-backed mutations require the exact deployment origin", () => {
   const url = "https://community.example/api/community/admin/invitations";
   assert.equal(

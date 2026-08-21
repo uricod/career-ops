@@ -88,16 +88,25 @@ export async function POST(request: Request) {
   const codeHash = createHash("sha256").update(invite).digest("hex");
   const { data: invitation } = await service
     .from("invitations")
-    .select("id,email,status,expires_at")
+    .select("id,email,status,expires_at,redeemed_by")
     .eq("code_hash", codeHash)
     .eq("email", email)
     .maybeSingle();
 
-  if (
-    !invitation ||
-    invitation.status !== "pending" ||
-    new Date(invitation.expires_at).getTime() <= Date.now()
-  ) {
+  let returningMember = false;
+  if (invitation?.status === "redeemed" && invitation.redeemed_by) {
+    const { data: profile } = await service
+      .from("profiles")
+      .select("membership_status")
+      .eq("id", invitation.redeemed_by)
+      .maybeSingle();
+    returningMember = profile?.membership_status === "active";
+  }
+
+  const pendingInvite =
+    invitation?.status === "pending" &&
+    new Date(invitation.expires_at).getTime() > Date.now();
+  if (!pendingInvite && !returningMember) {
     if (invitation?.status === "pending")
       await service
         .from("invitations")
@@ -107,7 +116,7 @@ export async function POST(request: Request) {
   }
 
   const callback = new URL("/auth/callback", publicSiteUrl());
-  callback.searchParams.set("invite", invite);
+  if (pendingInvite) callback.searchParams.set("invite", invite);
   callback.searchParams.set("next", "/community");
   const { error } = await supabase.auth.signInWithOtp({
     email,

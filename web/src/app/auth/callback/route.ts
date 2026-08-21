@@ -17,13 +17,21 @@ export async function GET(request: Request) {
           token_hash: tokenHash!,
           type: "magiclink",
         });
-    if (!error && invite) {
-      const { data: redeemed, error: redeemError } = await supabase.rpc(
-        "redeem_invitation",
-        { p_code: invite },
-      );
-      if (!redeemError && redeemed === true)
-        return privateRedirect(new URL(next, url.origin));
+    if (!error) {
+      if (invite) {
+        const { data: redeemed, error: redeemError } = await supabase.rpc(
+          "redeem_invitation",
+          { p_code: invite },
+        );
+        if (!redeemError && redeemed === true)
+          return privateRedirect(new URL(next, url.origin));
+      } else {
+        const { data: active, error: activeError } = await supabase.rpc(
+          "is_active_member",
+        );
+        if (!activeError && active === true)
+          return privateRedirect(new URL(next, url.origin));
+      }
     }
     await supabase.auth.signOut();
   }
