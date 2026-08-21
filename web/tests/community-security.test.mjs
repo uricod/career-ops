@@ -50,13 +50,19 @@ test("auth callback distinguishes expired links from invalid invitations", () =>
   assert.match(callback, /\/login\?error=invite/);
 });
 
-test("passwordless sign-in uses the cookie-backed SSR client for PKCE", () => {
+test("passwordless sign-in can be completed in the browser that opens the email", () => {
   const route = read(
     "web/src/app/api/community/auth/request-link/route.ts",
   );
-  assert.match(route, /await getSupabaseServerClient\(\)/);
-  assert.match(route, /supabase\.auth\.signInWithOtp/);
-  assert.doesNotMatch(route, /createClient\(/);
+  const complete = read("web/src/app/auth/complete/page.tsx");
+  assert.match(route, /flowType: "implicit"/);
+  assert.match(route, /auth\.auth\.signInWithOtp/);
+  assert.match(route, /new URL\("\/auth\/complete"/);
+  assert.match(complete, /fragment\.get\("access_token"\)/);
+  assert.match(complete, /fragment\.get\("refresh_token"\)/);
+  assert.match(complete, /window\.history\.replaceState/);
+  assert.match(complete, /supabase\.auth\.setSession/);
+  assert.match(complete, /supabase\.rpc\("is_active_member"\)/);
 });
 
 test("redeemed invitations can sign active returning members back in", () => {

@@ -2,9 +2,12 @@ import { createHash } from "node:crypto";
 import {
   getCommunityServerSecret,
   getCommunityServiceClient,
-  getSupabaseServerClient,
 } from "@/lib/community/supabase-server";
-import { publicSiteUrl } from "@/lib/community/config";
+import {
+  publicSiteUrl,
+  supabasePublishableKey,
+} from "@/lib/community/config";
+import { createClient } from "@supabase/supabase-js";
 import {
   clientAddress,
   isInvitationEmail,
@@ -54,14 +57,11 @@ export async function POST(request: Request) {
     return privateJson({ error: "Enter a valid invitation code." }, 400);
 
   const service = getCommunityServiceClient();
-  const supabase = await getSupabaseServerClient();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = supabasePublishableKey();
   const limitSecret =
     process.env.COMMUNITY_RATE_LIMIT_SECRET || getCommunityServerSecret();
-  if (
-    !service ||
-    !supabase ||
-    !limitSecret
-  )
+  if (!service || !supabaseUrl || !publishableKey || !limitSecret)
     return privateJson({ error: "Invitation service is not configured." }, 503);
 
   const address = clientAddress(request);
@@ -133,10 +133,23 @@ export async function POST(request: Request) {
     return privateJson({ error: "That invitation is unavailable." }, 403);
   }
 
-  const callback = new URL("/auth/callback", publicSiteUrl());
+  const callback = new URL("/auth/complete", publicSiteUrl());
   if (pendingInvite) callback.searchParams.set("invite", invite);
   callback.searchParams.set("next", "/community");
-  const { error } = await supabase.auth.signInWithOtp({
+  // The default hosted email provider does not permit custom token-hash
+  // templates on the free plan. An implicit magic link is still a one-time
+  // bearer link, but unlike PKCE it can be opened in a different browser than
+  // the one that requested the email. /auth/complete immediately moves the
+  // fragment tokens into secure Supabase cookies and clears the URL.
+  const auth = createClient(supabaseUrl, publishableKey, {
+    auth: {
+      flowType: "implicit",
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+  const { error } = await auth.auth.signInWithOtp({
     email,
     options: { shouldCreateUser: false, emailRedirectTo: callback.toString() },
   });
