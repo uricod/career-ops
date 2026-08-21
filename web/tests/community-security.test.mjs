@@ -57,8 +57,18 @@ test("redeemed invitations can sign active returning members back in", () => {
   const callback = read("web/src/app/auth/callback/route.ts");
   assert.match(requestLink, /invitation\?\.status === "redeemed"/);
   assert.match(requestLink, /profile\?\.membership_status === "active"/);
+  assert.match(requestLink, /if \(invite\)/);
+  assert.match(requestLink, /\.eq\("status", "redeemed"\)/);
+  assert.match(requestLink, /\.not\("redeemed_by", "is", null\)/);
   assert.match(callback, /supabase\.rpc\(\s*"is_active_member"/);
   assert.match(callback, /active === true/);
+});
+
+test("returning-member login makes the invitation code optional", () => {
+  const form = read("web/src/components/community/login-form.tsx");
+  assert.match(form, /Invitation code \(first sign-in only\)/);
+  assert.match(form, /Returning member\? Leave blank/);
+  assert.doesNotMatch(form, /<input\s+required\s+minLength=\{24\}/);
 });
 
 test("cookie-backed mutations require the exact deployment origin", () => {

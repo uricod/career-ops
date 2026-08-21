@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   const invite = String(body.invite || "").trim();
   if (!isInvitationEmail(email))
     return privateJson({ error: "Enter the invited email." }, 400);
-  if (invite.length < 24 || invite.length > 200)
+  if (invite && (invite.length < 24 || invite.length > 200))
     return privateJson({ error: "Enter a valid invitation code." }, 400);
 
   const service = getCommunityServiceClient();
@@ -85,13 +85,31 @@ export async function POST(request: Request) {
     });
   }
 
-  const codeHash = createHash("sha256").update(invite).digest("hex");
-  const { data: invitation } = await service
-    .from("invitations")
-    .select("id,email,status,expires_at,redeemed_by")
-    .eq("code_hash", codeHash)
-    .eq("email", email)
-    .maybeSingle();
+  let invitation;
+  if (invite) {
+    const codeHash = createHash("sha256").update(invite).digest("hex");
+    const result = await service
+      .from("invitations")
+      .select("id,email,status,expires_at,redeemed_by")
+      .eq("code_hash", codeHash)
+      .eq("email", email)
+      .maybeSingle();
+    invitation = result.data;
+  } else {
+    // Returning members should not need to retain their original invitation
+    // forever. A redeemed invitation still provides the invite-only identity
+    // link, and the active profile check below handles revoked memberships.
+    const result = await service
+      .from("invitations")
+      .select("id,email,status,expires_at,redeemed_by")
+      .eq("email", email)
+      .eq("status", "redeemed")
+      .not("redeemed_by", "is", null)
+      .order("redeemed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    invitation = result.data;
+  }
 
   let returningMember = false;
   if (invitation?.status === "redeemed" && invitation.redeemed_by) {

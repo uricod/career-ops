@@ -79,11 +79,11 @@ export function LoginForm({
             Member access
           </p>
           <h1 className="mt-4 font-serif text-5xl leading-none tracking-tight">
-            Use your invitation.
+            Sign in to The Commons.
           </h1>
           <p className="mt-4 text-sm leading-6 text-black/55 dark:text-white/55">
-            Enter the email address and code from your invitation. There are no
-            public registrations.
+            Returning members only need their email. First-time members also
+            enter the private code from their invitation.
           </p>
 
           {message ? (
@@ -104,16 +104,15 @@ export function LoginForm({
                   placeholder="you@example.org"
                 />
               </Field>
-              <Field icon={KeyRound} label="Invitation code">
+              <Field icon={KeyRound} label="Invitation code (first sign-in only)">
                 <input
-                  required
                   minLength={24}
                   maxLength={200}
                   autoComplete="one-time-code"
                   value={invite}
                   onChange={(event) => setInvite(event.target.value.trim())}
                   className="w-full bg-transparent font-mono text-sm outline-none"
-                  placeholder="Paste private code"
+                  placeholder="Returning member? Leave blank"
                 />
               </Field>
               <button
