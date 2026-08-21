@@ -23,6 +23,9 @@ jwt_expiry = 3600
 enable_signup = false
 
 [auth.email]
-enable_signup = false
+# Email must remain available for passwordless sign-in by users that the
+# server has already created. Global [auth].enable_signup remains the
+# authoritative public-registration lock.
+enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false

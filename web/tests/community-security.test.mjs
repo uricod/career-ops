@@ -123,8 +123,8 @@ test("database policies require active membership, not ownership alone", () => {
 
 test("public Supabase signup is disabled in the shipped configuration", () => {
   const config = read("supabase/config.toml");
-  assert.equal((config.match(/enable_signup = false/g) || []).length, 2);
-  assert.doesNotMatch(config, /enable_signup = true/);
+  assert.match(config, /\[auth\][\s\S]*?enable_signup = false/);
+  assert.match(config, /\[auth\.email\][\s\S]*?enable_signup = true/);
 });
 
 test("production CSP uses nonces and blocks script attributes", () => {

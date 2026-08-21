@@ -14,7 +14,7 @@ The hosted app is the existing Next.js app in `web/`, switched into its cloud-sa
    - `http://localhost:3000/auth/callback`
    - `https://YOUR_DOMAIN/auth/callback`
    - the Vercel preview callback pattern you intentionally trust
-5. Under Authentication providers, turn **Allow new users to sign up** off. The app pre-creates invited users through its server-only admin route; public account creation must remain disabled.
+5. In Authentication settings, turn the global **Allow new users to sign up** option off, but keep the **Email** provider enabled. The app pre-creates invited users through its server-only admin route, then Email provides passwordless sign-in for those existing users; public account creation remains disabled globally.
 6. Configure custom SMTP before a broad public launch so magic links do not depend on the default development sender.
 7. Create the first Auth user in the Supabase dashboard, then grant the administrator claim with server-side admin tooling and set that profile active. Never expose the secret/service-role key in the browser:
 
