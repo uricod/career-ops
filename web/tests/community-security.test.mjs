@@ -34,6 +34,22 @@ test("auth callback accepts only the private member tree", () => {
     assert.equal(safeCommunityPath(malicious), "/community");
 });
 
+test("auth callback verifies one-time email token hashes server-side", () => {
+  const callback = read("web/src/app/auth/callback/route.ts");
+  assert.match(callback, /url\.searchParams\.get\("token_hash"\)/);
+  assert.match(callback, /supabase\.auth\.verifyOtp/);
+  assert.match(callback, /type: "magiclink"/);
+});
+
+test("passwordless sign-in uses the cookie-backed SSR client for PKCE", () => {
+  const route = read(
+    "web/src/app/api/community/auth/request-link/route.ts",
+  );
+  assert.match(route, /await getSupabaseServerClient\(\)/);
+  assert.match(route, /supabase\.auth\.signInWithOtp/);
+  assert.doesNotMatch(route, /createClient\(/);
+});
+
 test("cookie-backed mutations require the exact deployment origin", () => {
   const url = "https://community.example/api/community/admin/invitations";
   assert.equal(

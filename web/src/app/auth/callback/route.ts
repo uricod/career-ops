@@ -5,11 +5,18 @@ import { safeCommunityPath } from "@/lib/community/security.mjs";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
+  const tokenHash = url.searchParams.get("token_hash");
+  const tokenType = url.searchParams.get("type");
   const invite = url.searchParams.get("invite");
   const next = safeCommunityPath(url.searchParams.get("next"));
   const supabase = await getSupabaseServerClient();
-  if (code && supabase) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+  if (supabase && (code || (tokenHash && tokenType === "magiclink"))) {
+    const { error } = code
+      ? await supabase.auth.exchangeCodeForSession(code)
+      : await supabase.auth.verifyOtp({
+          token_hash: tokenHash!,
+          type: "magiclink",
+        });
     if (!error && invite) {
       const { data: redeemed, error: redeemError } = await supabase.rpc(
         "redeem_invitation",

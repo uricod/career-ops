@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
 import {
   getCommunityServerSecret,
   getCommunityServiceClient,
+  getSupabaseServerClient,
 } from "@/lib/community/supabase-server";
-import { publicSiteUrl, supabasePublishableKey } from "@/lib/community/config";
+import { publicSiteUrl } from "@/lib/community/config";
 import {
   clientAddress,
   isInvitationEmail,
@@ -54,13 +54,12 @@ export async function POST(request: Request) {
     return privateJson({ error: "Enter a valid invitation code." }, 400);
 
   const service = getCommunityServiceClient();
-  const publishableKey = supabasePublishableKey();
+  const supabase = await getSupabaseServerClient();
   const limitSecret =
     process.env.COMMUNITY_RATE_LIMIT_SECRET || getCommunityServerSecret();
   if (
     !service ||
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !publishableKey ||
+    !supabase ||
     !limitSecret
   )
     return privateJson({ error: "Invitation service is not configured." }, 503);
@@ -107,11 +106,6 @@ export async function POST(request: Request) {
     return privateJson({ error: "That invitation is unavailable." }, 403);
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    publishableKey,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
   const callback = new URL("/auth/callback", publicSiteUrl());
   callback.searchParams.set("invite", invite);
   callback.searchParams.set("next", "/community");
