@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Active invitation required." }, { status: 403 });
   const { data: claimed, error: claimError } = await supabase!.rpc(
     "claim_job_search",
-    { p_min_interval_seconds: 15 },
+    { p_min_interval_seconds: 60 },
   );
   if (claimError)
     return Response.json(
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     );
   if (!claimed)
     return Response.json(
-      { error: "A search just ran. Wait a few seconds before starting another." },
+      { error: "A search just ran. Wait a minute before starting another." },
       { status: 429 },
     );
 

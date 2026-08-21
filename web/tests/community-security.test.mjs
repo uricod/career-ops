@@ -179,6 +179,7 @@ test("hosted search is member-only, streamed, and never spends AI tokens", () =>
   assert.match(route, /getCommunityMembership/);
   assert.match(route, /application\/x-ndjson/);
   assert.match(route, /tokens: 0/);
+  assert.match(route, /p_min_interval_seconds: 60/);
   assert.doesNotMatch(route, /api\.openai\.com/);
 });
 
