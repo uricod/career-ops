@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { SourceBrowser } from "@/components/community/source-browser";
+import { JobSearchClient } from "@/components/community/job-search-client";
 
 export const metadata: Metadata = {
-  title: "Find jobs — Career Ops Community",
+  title: "Search jobs — Career Ops Community",
   description:
-    "Search verified community job sources and public ATS boards for free.",
+    "Run one private search across public ATS and community job boards.",
 };
 export default function CommunityJobsPage() {
-  return <SourceBrowser />;
+  return <JobSearchClient />;
 }

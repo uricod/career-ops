@@ -24,6 +24,7 @@ export function FitCheckClient() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
+    setJob(sessionStorage.getItem("career-ops:job-session") || "");
     setResume(sessionStorage.getItem("career-ops:resume-session") || "");
   }, []);
   async function submit(e: FormEvent) {

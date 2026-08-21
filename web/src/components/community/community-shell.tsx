@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CircleUserRound,
-  Compass,
+  Search,
   Gauge,
   ListTodo,
   ScanSearch,
@@ -15,7 +15,7 @@ import { cn } from "@/lib/cn";
 import { CommunityAuthButton } from "./community-auth-button";
 
 const items = [
-  { href: "/community/jobs", label: "Discover", icon: Compass },
+  { href: "/community/jobs", label: "Search", icon: Search },
   { href: "/community/tracker", label: "Board", icon: ListTodo },
   { href: "/community/fit", label: "Review", icon: ScanSearch },
   { href: "/community/usage", label: "Allowance", icon: Gauge },

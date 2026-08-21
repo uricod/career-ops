@@ -15,9 +15,9 @@ test("community fit route has a zero-token privacy fallback", () => {
   );
 });
 
-test("community sources are curated external links", () => {
-  const sources = fs.readFileSync(
-    new URL("../../src/lib/community/sources.ts", import.meta.url),
+test("community boards run through the hosted scanner, not a link directory", () => {
+  const scanner = fs.readFileSync(
+    new URL("../../src/lib/community/hosted-scanner.ts", import.meta.url),
     "utf8",
   );
   for (const expected of [
@@ -25,11 +25,11 @@ test("community sources are curated external links", () => {
     "yidjob.com",
     "trefajob.com",
     "luach.com",
-    "jewishjobs.com",
-    "careers.ou.org",
-    "nbn.org.il",
   ]) {
-    assert.match(sources, new RegExp(expected.replace(".", "\\."), "i"));
+    assert.match(scanner, new RegExp(expected.replace(".", "\\."), "i"));
   }
-  assert.match(sources, /do not scrape or republish/i);
+  assert.match(scanner, /sourceDone/);
+  assert.match(scanner, /greenhouse_companies\.json/);
+  assert.match(scanner, /lever_companies\.json/);
+  assert.match(scanner, /ashby_companies\.json/);
 });

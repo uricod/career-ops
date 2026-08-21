@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { ArrowRight, Compass, ListTodo, ScanSearch } from "lucide-react";
+import { ArrowRight, ListTodo, ScanSearch, Search } from "lucide-react";
 
 export default function CommunityPage() {
   const actions = [
     {
       href: "/community/jobs",
-      label: "Discover",
-      note: "Open the source library",
-      icon: Compass,
+      label: "Search",
+      note: "Run every job source together",
+      icon: Search,
     },
     {
       href: "/community/fit",

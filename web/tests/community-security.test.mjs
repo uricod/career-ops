@@ -155,10 +155,28 @@ test("production CSP uses nonces and blocks script attributes", () => {
 test("every cookie-backed Community mutation has an origin gate", () => {
   for (const route of [
     "web/src/app/api/community/evaluate/route.ts",
+    "web/src/app/api/community/search/route.ts",
+    "web/src/app/api/community/rank/route.ts",
     "web/src/app/api/community/auth/request-link/route.ts",
     "web/src/app/api/community/admin/invitations/route.ts",
   ])
     assert.match(read(route), /isSameOriginMutation\(request\)/, route);
+});
+
+test("hosted search is member-only, streamed, and never spends AI tokens", () => {
+  const route = read("web/src/app/api/community/search/route.ts");
+  assert.match(route, /getCommunityMembership/);
+  assert.match(route, /application\/x-ndjson/);
+  assert.match(route, /tokens: 0/);
+  assert.doesNotMatch(route, /api\.openai\.com/);
+});
+
+test("AI search ranking reserves quota before calling the model", () => {
+  const route = read("web/src/app/api/community/rank/route.ts");
+  assert.match(route, /p_operation: "search-shortlist"/);
+  assert.match(route, /Buffer\.byteLength\(payload, "utf8"\)/);
+  assert.ok(route.indexOf("reserve_ai_usage") < route.indexOf("api.openai.com"));
+  assert.match(route, /store: false/);
 });
 
 test("AI quota reservation is multilingual-safe and bounded before the API call", () => {
