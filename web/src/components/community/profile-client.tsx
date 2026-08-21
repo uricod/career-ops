@@ -1,7 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Check, LoaderCircle, LogOut, Save, ShieldCheck } from "lucide-react";
+import {
+  Check,
+  LoaderCircle,
+  LockKeyhole,
+  LogOut,
+  Save,
+  ShieldCheck,
+} from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/community/supabase-browser";
 import type { CommunityProfile } from "@/lib/community/types";
 
@@ -35,6 +42,11 @@ export function ProfileClient() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   useEffect(() => {
     void (async () => {
       if (supabase) {
@@ -98,6 +110,35 @@ export function ProfileClient() {
   async function logout() {
     if (supabase) await supabase.auth.signOut();
     window.location.href = "/";
+  }
+  async function savePassword(e: FormEvent) {
+    e.preventDefault();
+    setPasswordError("");
+    setPasswordMessage("");
+    if (newPassword.length < 12 || newPassword.length > 72) {
+      setPasswordError("Use a password between 12 and 72 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("The passwords do not match.");
+      return;
+    }
+    if (!supabase) {
+      setPasswordError("Password service is unavailable.");
+      return;
+    }
+    setPasswordBusy(true);
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    setPasswordBusy(false);
+    if (updateError) {
+      setPasswordError(updateError.message);
+      return;
+    }
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordMessage("Password saved. Use it for future sign-ins.");
   }
   if (loading)
     return (
@@ -223,6 +264,70 @@ export function ProfileClient() {
         <button className="inline-flex min-h-12 items-center gap-2 rounded-full bg-brand px-6 text-sm font-bold text-brand-foreground">
           {saved ? <Check className="size-4" /> : <Save className="size-4" />}
           {saved ? "Saved" : "Save preferences"}
+        </button>
+      </form>
+      <form
+        onSubmit={savePassword}
+        className="mt-6 rounded-3xl border border-border bg-surface p-6 shadow-sm sm:p-8"
+      >
+        <div className="flex gap-3">
+          <LockKeyhole className="mt-1 size-5 shrink-0 text-brand" />
+          <div>
+            <h2 className="text-lg font-bold">Password login</h2>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              Set or replace your password. It is hashed and managed by
+              Supabase; The Commons never stores it directly.
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-semibold">
+            New password
+            <input
+              type="password"
+              required
+              minLength={12}
+              maxLength={72}
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              className="mt-2 min-h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm font-normal outline-none focus:border-brand"
+              placeholder="At least 12 characters"
+            />
+          </label>
+          <label className="block text-sm font-semibold">
+            Confirm password
+            <input
+              type="password"
+              required
+              minLength={12}
+              maxLength={72}
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className="mt-2 min-h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm font-normal outline-none focus:border-brand"
+              placeholder="Repeat password"
+            />
+          </label>
+        </div>
+        {passwordError && (
+          <p role="alert" className="mt-4 text-sm text-rose-600">
+            {passwordError}
+          </p>
+        )}
+        {passwordMessage && (
+          <p className="mt-4 text-sm text-emerald-600">{passwordMessage}</p>
+        )}
+        <button
+          disabled={passwordBusy}
+          className="mt-5 inline-flex min-h-12 items-center gap-2 rounded-full bg-foreground px-6 text-sm font-bold text-background disabled:opacity-50"
+        >
+          {passwordBusy ? (
+            <LoaderCircle className="size-4 animate-spin" />
+          ) : (
+            <LockKeyhole className="size-4" />
+          )}
+          {passwordBusy ? "Saving…" : "Save password"}
         </button>
       </form>
     </div>

@@ -64,6 +64,7 @@ export async function proxy(request: NextRequest) {
     path === "/login" ||
     path === "/auth/callback" ||
     path === "/auth/complete" ||
+    path === "/api/community/auth/activate" ||
     path === "/api/community/auth/request-link";
   const protectedCommunityPath =
     path.startsWith("/community") ||

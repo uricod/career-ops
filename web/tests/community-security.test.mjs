@@ -79,11 +79,20 @@ test("redeemed invitations can sign active returning members back in", () => {
   assert.match(callback, /active === true/);
 });
 
-test("returning-member login makes the invitation code optional", () => {
+test("returning members use passwords and invitees create one once", () => {
   const form = read("web/src/components/community/login-form.tsx");
-  assert.match(form, /Invitation code \(first sign-in only\)/);
-  assert.match(form, /Returning member\? Leave blank/);
-  assert.doesNotMatch(form, /<input\s+required\s+minLength=\{24\}/);
+  const activate = read(
+    "web/src/app/api/community/auth/activate/route.ts",
+  );
+  const profile = read("web/src/components/community/profile-client.tsx");
+  assert.match(form, /supabase\.auth\.signInWithPassword/);
+  assert.match(form, /Activate membership/);
+  assert.match(form, /redeem_invitation/);
+  assert.match(activate, /password\.length < 12/);
+  assert.match(activate, /updateUserById/);
+  assert.match(activate, /email_confirm: true/);
+  assert.match(profile, /supabase\.auth\.updateUser/);
+  assert.match(profile, /Password login/);
 });
 
 test("cookie-backed mutations require the exact deployment origin", () => {
@@ -194,6 +203,7 @@ test("every cookie-backed Community mutation has an origin gate", () => {
     "web/src/app/api/community/search/route.ts",
     "web/src/app/api/community/rank/route.ts",
     "web/src/app/api/community/auth/request-link/route.ts",
+    "web/src/app/api/community/auth/activate/route.ts",
     "web/src/app/api/community/admin/invitations/route.ts",
   ])
     assert.match(read(route), /isSameOriginMutation\(request\)/, route);

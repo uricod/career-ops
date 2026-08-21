@@ -7,9 +7,13 @@ import {
   CheckCircle2,
   KeyRound,
   LoaderCircle,
+  LockKeyhole,
   Mail,
 } from "lucide-react";
 import { COMMUNITY_NAME } from "@/lib/community/config";
+import { getSupabaseBrowserClient } from "@/lib/community/supabase-browser";
+
+type LoginMode = "password" | "activate" | "link";
 
 export function LoginForm({
   initialInvite = "",
@@ -20,8 +24,13 @@ export function LoginForm({
   initialEmail?: string;
   initialError?: string;
 }) {
+  const [mode, setMode] = useState<LoginMode>(
+    initialInvite ? "activate" : "password",
+  );
   const [email, setEmail] = useState(initialEmail);
   const [invite, setInvite] = useState(initialInvite);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(
@@ -32,28 +41,97 @@ export function LoginForm({
         : "",
   );
 
+  function switchMode(next: LoginMode) {
+    setMode(next);
+    setError("");
+    setMessage("");
+    setPassword("");
+    setConfirmPassword("");
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/community/auth/request-link", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, invite }),
+      if (mode === "link") {
+        const response = await fetch("/api/community/auth/request-link", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, invite }),
+        });
+        const body = await response.json();
+        if (!response.ok)
+          throw new Error(body.error || "Private link unavailable.");
+        setMessage("Check your inbox. The private link expires shortly.");
+        return;
+      }
+
+      if (password.length < 12 || password.length > 72)
+        throw new Error("Use a password between 12 and 72 characters.");
+      if (mode === "activate" && password !== confirmPassword)
+        throw new Error("The passwords do not match.");
+      if (mode === "activate") {
+        const response = await fetch("/api/community/auth/activate", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, invite, password }),
+        });
+        const body = await response.json();
+        if (!response.ok)
+          throw new Error(body.error || "That invitation is unavailable.");
+      }
+
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) throw new Error("Sign-in is temporarily unavailable.");
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
       });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(body.error || "Invitation unavailable.");
-      setMessage("Check your inbox. The private sign-in link expires shortly.");
+      if (signInError) throw new Error("Email or password is incorrect.");
+
+      if (mode === "activate") {
+        const { data, error: redeemError } = await supabase.rpc(
+          "redeem_invitation",
+          { p_code: invite },
+        );
+        if (redeemError || data !== true) {
+          await supabase.auth.signOut();
+          throw new Error("That invitation could not be activated.");
+        }
+        window.location.replace("/community/profile?welcome=1");
+        return;
+      }
+
+      const { data: active, error: memberError } = await supabase.rpc(
+        "is_active_member",
+      );
+      if (memberError || active !== true) {
+        await supabase.auth.signOut();
+        throw new Error("Active membership is required.");
+      }
+      window.location.replace("/community");
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Invitation unavailable.",
+        cause instanceof Error ? cause.message : "Sign-in is unavailable.",
       );
     } finally {
       setBusy(false);
     }
   }
+
+  const title =
+    mode === "password"
+      ? "Welcome back."
+      : mode === "activate"
+        ? "Create your member login."
+        : "Get a private sign-in link.";
+  const description =
+    mode === "password"
+      ? "Sign in with the email and password attached to your membership."
+      : mode === "activate"
+        ? "Your invitation is your one-time access key. Choose the password you’ll use from now on."
+        : "We’ll email a short-lived, one-time link to an active or invited member.";
 
   return (
     <main className="grid min-h-screen bg-[#f4f2ed] text-[#181815] dark:bg-[#10100f] dark:text-[#f2f0e9] lg:grid-cols-[.85fr_1.15fr]">
@@ -79,11 +157,10 @@ export function LoginForm({
             Member access
           </p>
           <h1 className="mt-4 font-serif text-5xl leading-none tracking-tight">
-            Sign in to The Commons.
+            {title}
           </h1>
           <p className="mt-4 text-sm leading-6 text-black/55 dark:text-white/55">
-            Returning members only need their email. First-time members also
-            enter the private code from their invitation.
+            {description}
           </p>
 
           {message ? (
@@ -93,7 +170,7 @@ export function LoginForm({
             </div>
           ) : (
             <form onSubmit={submit} className="mt-8 space-y-4">
-              <Field icon={Mail} label="Invited email">
+              <Field icon={Mail} label="Member email">
                 <input
                   type="email"
                   required
@@ -104,38 +181,101 @@ export function LoginForm({
                   placeholder="you@example.org"
                 />
               </Field>
-              <Field icon={KeyRound} label="Invitation code (first sign-in only)">
-                <input
-                  minLength={24}
-                  maxLength={200}
-                  autoComplete="one-time-code"
-                  value={invite}
-                  onChange={(event) => setInvite(event.target.value.trim())}
-                  className="w-full bg-transparent font-mono text-sm outline-none"
-                  placeholder="Returning member? Leave blank"
-                />
-              </Field>
+
+              {mode === "activate" && (
+                <Field icon={KeyRound} label="Invitation code">
+                  <input
+                    required
+                    minLength={24}
+                    maxLength={200}
+                    autoComplete="one-time-code"
+                    value={invite}
+                    onChange={(event) => setInvite(event.target.value.trim())}
+                    className="w-full bg-transparent font-mono text-sm outline-none"
+                    placeholder="Paste private code"
+                  />
+                </Field>
+              )}
+
+              {mode !== "link" && (
+                <Field
+                  icon={LockKeyhole}
+                  label={mode === "activate" ? "Create password" : "Password"}
+                >
+                  <input
+                    type="password"
+                    required
+                    minLength={12}
+                    maxLength={72}
+                    autoComplete={
+                      mode === "activate" ? "new-password" : "current-password"
+                    }
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="w-full bg-transparent text-sm outline-none"
+                    placeholder="At least 12 characters"
+                  />
+                </Field>
+              )}
+
+              {mode === "activate" && (
+                <Field icon={LockKeyhole} label="Confirm password">
+                  <input
+                    type="password"
+                    required
+                    minLength={12}
+                    maxLength={72}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    className="w-full bg-transparent text-sm outline-none"
+                    placeholder="Repeat password"
+                  />
+                </Field>
+              )}
+
               <button
                 disabled={busy}
                 className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#181815] px-5 text-sm font-semibold text-white transition hover:opacity-85 disabled:opacity-50 dark:bg-[#f2f0e9] dark:text-[#181815]"
               >
                 {busy ? (
                   <LoaderCircle className="size-4 animate-spin" />
-                ) : (
+                ) : mode === "link" ? (
                   <Mail className="size-4" />
+                ) : (
+                  <LockKeyhole className="size-4" />
                 )}
-                {busy ? "Checking…" : "Send private sign-in link"}
+                {busy
+                  ? "Checking…"
+                  : mode === "password"
+                    ? "Sign in"
+                    : mode === "activate"
+                      ? "Activate membership"
+                      : "Send private link"}
               </button>
               {error && (
-                <p
-                  role="alert"
-                  className="text-sm text-rose-700 dark:text-rose-400"
-                >
+                <p role="alert" className="text-sm text-rose-700 dark:text-rose-400">
                   {error}
                 </p>
               )}
             </form>
           )}
+
+          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold">
+            {mode !== "password" && (
+              <button onClick={() => switchMode("password")}>Use password</button>
+            )}
+            {mode !== "activate" && (
+              <button onClick={() => switchMode("activate")}>
+                Use an invitation
+              </button>
+            )}
+            {mode !== "link" && (
+              <button onClick={() => switchMode("link")}>
+                Email me a private link
+              </button>
+            )}
+          </div>
         </div>
       </section>
     </main>
