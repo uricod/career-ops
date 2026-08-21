@@ -38,7 +38,16 @@ test("auth callback verifies one-time email token hashes server-side", () => {
   const callback = read("web/src/app/auth/callback/route.ts");
   assert.match(callback, /url\.searchParams\.get\("token_hash"\)/);
   assert.match(callback, /supabase\.auth\.verifyOtp/);
-  assert.match(callback, /type: "magiclink"/);
+  assert.match(callback, /tokenType === "magiclink"/);
+  assert.match(callback, /tokenType === "email"/);
+  assert.match(callback, /type: emailTokenType!/);
+});
+
+test("auth callback distinguishes expired links from invalid invitations", () => {
+  const callback = read("web/src/app/auth/callback/route.ts");
+  assert.match(callback, /if \(error\)/);
+  assert.match(callback, /\/login\?error=auth/);
+  assert.match(callback, /\/login\?error=invite/);
 });
 
 test("passwordless sign-in uses the cookie-backed SSR client for PKCE", () => {

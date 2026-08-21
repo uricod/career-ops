@@ -10,12 +10,18 @@ export async function GET(request: Request) {
   const invite = url.searchParams.get("invite");
   const next = safeCommunityPath(url.searchParams.get("next"));
   const supabase = await getSupabaseServerClient();
-  if (supabase && (code || (tokenHash && tokenType === "magiclink"))) {
+  const emailTokenType =
+    tokenType === "email"
+      ? "email"
+      : tokenType === "magiclink"
+        ? "magiclink"
+        : null;
+  if (supabase && (code || (tokenHash && emailTokenType))) {
     const { error } = code
       ? await supabase.auth.exchangeCodeForSession(code)
       : await supabase.auth.verifyOtp({
           token_hash: tokenHash!,
-          type: "magiclink",
+          type: emailTokenType!,
         });
     if (!error) {
       if (invite) {
@@ -34,6 +40,8 @@ export async function GET(request: Request) {
       }
     }
     await supabase.auth.signOut();
+    if (error)
+      return privateRedirect(new URL("/login?error=auth", url.origin));
   }
   return privateRedirect(new URL("/login?error=invite", url.origin));
 }
