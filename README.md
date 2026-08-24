@@ -297,6 +297,25 @@ npm run gemini:eval -- "JD text here"
 
 > **Free tier:** Both options work without billing. Native CLI uses Google OAuth; the API script uses `gemini-3.6-flash` (rate limits are model- and tier-dependent; see Google AI docs for current quotas).
 
+### Standalone Grok API (No Codex or Grok CLI required)
+
+Use an xAI API token directly through the first-class Grok provider preset:
+
+```bash
+# Put this in .env (never commit the real token)
+XAI_API_KEY=your_xai_api_key_here
+# Optional: make Grok the default for OpenAI-transport commands
+CAREER_OPS_AI_PROVIDER=grok
+# Optional model override (grok-4.6 is already the default)
+XAI_MODEL=grok-4.6
+
+# Evaluate a captured job description with Grok
+npm run grok:eval -- --file ./jds/my-job.txt
+
+```
+
+The preset uses `https://api.x.ai/v1` and `grok-4.6` by default. It is the direct API path for evaluation and CV tailoring; modes that need an autonomous coding agent and tools can continue to run through the Grok Build CLI.
+
 ## Usage
 
 career-ops uses a shared command router. In CLIs that register slash commands, it looks like this:

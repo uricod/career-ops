@@ -332,7 +332,7 @@ export function JobSearchClient() {
                   {rankingBusy ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   {rankingBusy ? "AI is comparing…" : "Rank best matches"}
                 </button>
-                <p className="mt-2 max-w-56 text-[10px] leading-4 text-faint">{aiConfigured === false ? "OpenAI is not connected yet, so this demonstrates the flow with a private 0-token rank." : "This is the metered step. Exact tokens appear in Allowance."}</p>
+                <p className="mt-2 max-w-56 text-[10px] leading-4 text-faint">{aiConfigured === false ? "The AI provider is not connected yet, so this demonstrates the flow with a private 0-token rank." : "This is the metered step. Exact tokens appear in Allowance."}</p>
               </div>
             </div>
           )}

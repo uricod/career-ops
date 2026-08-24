@@ -3,7 +3,7 @@
  * openai-eval.mjs — OpenAI-compatible Job Offer Evaluator for career-ops
  *
  * Evaluate job offers with ANY OpenAI-compatible chat endpoint instead of Claude.
- * Works with OpenAI, OpenRouter, Together, Groq, DeepSeek, Zhipu GLM, MiniMax,
+ * Works with OpenAI, xAI/Grok, OpenRouter, Together, Groq, DeepSeek, Zhipu GLM, MiniMax,
  * Fireworks, and local servers that speak the OpenAI API (LM Studio, llama.cpp,
  * vLLM, Ollama's /v1). Point it at a base URL + model + key and go.
  *
@@ -36,6 +36,9 @@ import {
 } from './reserve-report-num.mjs';
 import { TokenAccumulator, formatBreakdown, normalizeOpenAIUsage } from './utils/token-tracker.mjs';
 import { buildBudgetedPrompt } from './lib/context-budget.mjs';
+import {
+  isXaiHost, resolveOpenAIProviderConfig, xaiConversationId,
+} from './lib/openai-provider-config.mjs';
 
 const tracker = new TokenAccumulator();
 tracker.recordZeroToken('scan');
@@ -64,37 +67,43 @@ const PATHS = {
 // ---------------------------------------------------------------------------
 const args = process.argv.slice(2);
 
-if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
+if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
   console.log(`
 ╔══════════════════════════════════════════════════════════════════╗
 ║       career-ops — OpenAI-compatible Evaluator (any endpoint)     ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-  Evaluate a job offer with any OpenAI-compatible chat API instead of Claude.
+  Evaluate a job offer with any OpenAI-compatible chat API instead of a coding CLI.
 
   USAGE
     node openai-eval.mjs "<JD text>"
     node openai-eval.mjs --file ./jds/my-job.txt
+    node openai-eval.mjs --provider grok --file ./jds/my-job.txt
     node openai-eval.mjs --url <base> --model <id> --file ./jds/job.txt
 
   OPTIONS
     --file <path>    Read JD from a file instead of inline text
-    --model <id>     Model id            (env OPENAI_MODEL, default gpt-4o-mini)
+    --provider <id>  Provider preset: openai-compatible (default) or grok
+    --model <id>     Override the provider's model id
     --url <base>     OpenAI-compatible base URL, including any /v1
                      (env OPENAI_BASE_URL, default https://api.openai.com/v1)
-    --key <key>      API key             (env OPENAI_API_KEY)
+    --key <key>      Override the provider's API key (prefer environment variables)
     --no-save        Do not save report to reports/ directory
     --no-compress    Skip token budget compression (full context injection)
     --help           Show this help
 
   ENV
-    OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, OPENAI_TIMEOUT_MS
+    Select:  CAREER_OPS_AI_PROVIDER=openai-compatible|grok
+    Generic: OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, OPENAI_TIMEOUT_MS
+    Grok:    XAI_API_KEY, XAI_BASE_URL, XAI_MODEL, XAI_TIMEOUT_MS
+             (GROK_API_KEY / GROK_BASE_URL / GROK_MODEL are accepted aliases)
 
   PROVIDER EXAMPLES (cheap / free-tier friendly — addresses token cost)
     OpenRouter:  --url https://openrouter.ai/api/v1   --model deepseek/deepseek-chat
     Together:    --url https://api.together.xyz/v1     --model meta-llama/Llama-3.3-70B-Instruct-Turbo
     Groq:        --url https://api.groq.com/openai/v1  --model llama-3.3-70b-versatile
     DeepSeek:    --url https://api.deepseek.com/v1     --model deepseek-chat
+    Grok/xAI:    --provider grok                        (default model grok-4.6)
     Zhipu GLM:   --url https://open.bigmodel.cn/api/paas/v4  --model glm-4-flash
     LM Studio:   --url http://localhost:1234/v1        --model <loaded-model>   (no key)
 
@@ -105,16 +114,34 @@ if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
   process.exit(0);
 }
 
-// Parse flags
+const providerIndex = args.indexOf('--provider');
+if (providerIndex !== -1 && !args[providerIndex + 1]) {
+  console.error('❌  --provider requires a value: openai-compatible or grok.');
+  process.exit(1);
+}
+
+let providerConfig;
+try {
+  providerConfig = resolveOpenAIProviderConfig({
+    provider: providerIndex !== -1 ? args[providerIndex + 1] : undefined,
+  });
+} catch (err) {
+  console.error(`❌  ${err.message}`);
+  process.exit(1);
+}
+
+// Parse flags. Explicit CLI values override the selected provider preset.
 let jdText     = '';
-let modelName  = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-let baseUrl    = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
-let apiKey     = process.env.OPENAI_API_KEY || '';
+let modelName  = providerConfig.model;
+let baseUrl    = providerConfig.baseUrl.replace(/\/$/, '');
+let apiKey     = providerConfig.apiKey;
 let saveReport = true;
 let noCompress = false;
 
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === '--file' && args[i + 1]) {
+  if (args[i] === '--provider' && args[i + 1]) {
+    i++;
+  } else if (args[i] === '--file' && args[i + 1]) {
     const filePath = args[++i];
     if (!existsSync(filePath)) {
       console.error(`❌  File not found: ${filePath}`);
@@ -160,7 +187,7 @@ let endpointHost;
   try {
     parsed = new URL(baseUrl);
   } catch {
-    console.error(`❌  Invalid OPENAI_BASE_URL: "${baseUrl}"`);
+    console.error(`❌  Invalid API base URL: "${baseUrl}"`);
     process.exit(1);
   }
   endpointHost = parsed.hostname;
@@ -181,7 +208,7 @@ let endpointHost;
 ❌  No API key for ${endpointHost}.
 
    Set one and re-run:
-     OPENAI_API_KEY=your_key node openai-eval.mjs ...
+     ${providerConfig.apiKeyEnv}=your_key node openai-eval.mjs${providerConfig.id === 'grok' ? ' --provider grok' : ''} ...
    or pass --key <key>. (Local servers at localhost may not need one.)
 `);
     process.exit(1);
@@ -230,7 +257,7 @@ const { contextBody, budgetReport } = buildBudgetedPrompt({
   profileYml,
   jdText,
   noCompress,
-  maxTokens: 128_000, // gpt-4o-mini context window
+  maxTokens: providerConfig.maxContextTokens,
 });
 
 // Log token budget info
@@ -278,13 +305,14 @@ LEGITIMACY: <High Confidence | Proceed with Caution | Suspicious>
 // OpenRouter runner. The static prefix (shared + oferta + cv, ~12K tokens) is
 // byte-identical across every offer, yet was re-sent and re-billed each call.
 //
-// Host-gated on purpose: OpenAI-compatible gateways (OpenRouter, DeepSeek, …)
+// Host-gated on purpose: compatible gateways (OpenRouter, DeepSeek, …)
 // honor an ephemeral `cache_control` breakpoint on the prefix and reuse it
-// across back-to-back calls within the cache TTL. api.openai.com instead caches
-// long prefixes automatically and may reject the non-standard field, so it gets
-// a plain-string system message. Either way the prompt TEXT is unchanged.
+// across back-to-back calls within the cache TTL. api.openai.com caches long
+// prefixes automatically; xAI uses x-grok-conv-id instead. Both get a plain
+// string because they may reject the non-standard field. Prompt text is unchanged.
 export function buildSystemMessage(prompt, host) {
   if (host === 'api.openai.com') return { role: 'system', content: prompt };
+  if (isXaiHost(host)) return { role: 'system', content: prompt };
   return {
     role: 'system',
     content: [{ type: 'text', text: prompt, cache_control: { type: 'ephemeral' } }],
@@ -294,9 +322,9 @@ export function buildSystemMessage(prompt, host) {
 // ---------------------------------------------------------------------------
 // Call the OpenAI-compatible endpoint
 // ---------------------------------------------------------------------------
-const timeoutMs = parseInt(process.env.OPENAI_TIMEOUT_MS || '300000', 10);
+const timeoutMs = parseInt(providerConfig.timeoutMs, 10);
 if (Number.isNaN(timeoutMs) || timeoutMs <= 0) {
-  console.error(`❌  Invalid OPENAI_TIMEOUT_MS: "${process.env.OPENAI_TIMEOUT_MS}" — must be a positive integer (milliseconds).`);
+  console.error(`❌  Invalid timeout "${providerConfig.timeoutMs}" — must be a positive integer (milliseconds).`);
   process.exit(1);
 }
 
@@ -305,6 +333,7 @@ console.log(`🤖  Calling ${modelName} via ${endpointHost}... this may take a m
 
 const headers = { 'Content-Type': 'application/json' };
 if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+if (isXaiHost(endpointHost)) headers['x-grok-conv-id'] = xaiConversationId(systemPrompt);
 
 let evaluationText;
 try {
@@ -357,7 +386,7 @@ try {
 // Display evaluation
 // ---------------------------------------------------------------------------
 console.log('\n' + '═'.repeat(66));
-console.log('  CAREER-OPS EVALUATION — powered by ' + modelName + ' (' + endpointHost + ')');
+console.log('  CAREER-OPS EVALUATION — powered by ' + modelName + ' (' + providerConfig.displayName + ')');
 console.log('═'.repeat(66) + '\n');
 console.log(evaluationText);
 
@@ -408,7 +437,7 @@ if (saveReport) {
 **Score:** ${score}/5
 **Legitimacy:** ${legitimacy}
 **PDF:** pending
-**Tool:** OpenAI-compatible (${modelName} @ ${endpointHost})
+**Tool:** ${providerConfig.displayName} (${modelName} @ ${endpointHost})
 
 ---
 
@@ -437,4 +466,4 @@ console.log('\n' + '─'.repeat(66));
 console.log(`  Score: ${score}/5  |  Archetype: ${archetype}  |  Legitimacy: ${legitimacy}`);
 console.log('─'.repeat(66) + '\n');
 
-console.log(formatBreakdown(tracker, modelName, 'openai'));
+console.log(formatBreakdown(tracker, modelName, providerConfig.tokenProvider));

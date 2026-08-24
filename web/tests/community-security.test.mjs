@@ -222,7 +222,9 @@ test("AI search ranking reserves quota before calling the model", () => {
   const route = read("web/src/app/api/community/rank/route.ts");
   assert.match(route, /p_operation: "search-shortlist"/);
   assert.match(route, /Buffer\.byteLength\(payload, "utf8"\)/);
-  assert.ok(route.indexOf("reserve_ai_usage") < route.indexOf("api.openai.com"));
+  assert.ok(
+    route.indexOf("reserve_ai_usage") < route.indexOf("fetch(ai.responsesUrl"),
+  );
   assert.match(route, /store: false/);
 });
 
@@ -236,6 +238,6 @@ test("AI quota reservation is multilingual-safe and bounded before the API call"
       route.indexOf("reserve_ai_usage"),
   );
   assert.ok(
-    route.indexOf("reserve_ai_usage") < route.indexOf("api.openai.com"),
+    route.indexOf("reserve_ai_usage") < route.indexOf("fetch(ai.responsesUrl"),
   );
 });

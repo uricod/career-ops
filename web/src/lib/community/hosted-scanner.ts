@@ -6,6 +6,7 @@ import {
   type HostedSearchEvent,
   type HostedSearchResult,
 } from "./job-search";
+import { resolveCommunityAiProvider } from "./ai-provider.mjs";
 
 type RawJob = {
   title?: unknown;
@@ -395,7 +396,7 @@ export async function runHostedSearch(
     kind: "start",
     sources: HOSTED_SEARCH_SOURCES,
     boardCount: ATS.reduce((sum, config) => sum + config.sample, 0) + COMMUNITY.length,
-    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    aiConfigured: resolveCommunityAiProvider().configured,
   });
   const atsLists = await Promise.all(
     ATS.map(async (config) => {

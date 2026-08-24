@@ -164,6 +164,7 @@ const SYSTEM_PATHS = [
   'lib/context-budget.mjs',
   'lib/context-budget.test.mjs',
   'lib/golden-budget-analysis.mjs',
+  'lib/openai-provider-config.mjs',
   'img-to-pdf.mjs',
   'archive-posting.mjs',
   'jd-capture.mjs',
