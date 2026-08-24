@@ -138,11 +138,11 @@ try {
     check(true, "search result saves to the private board");
 
     if (!skipAi) {
-      await page.getByRole("button", { name: "Use AI to shortlist" }).click();
+      await page.getByRole("button", { name: /Use .* to shortlist/ }).click();
       await page.getByLabel(/Resume evidence/).fill(resume);
       await page.getByRole("button", { name: "Rank best matches" }).click();
-      await page.getByText(/AI ranked ·/).waitFor({ timeout: 180_000 });
-      const rankText = await page.getByText(/AI ranked ·/).textContent();
+      await page.getByText(/ranked ·/).waitFor({ timeout: 180_000 });
+      const rankText = await page.getByText(/ranked ·/).textContent();
       check(
         /\d[\d,]* tokens used/.test(rankText || ""),
         "Grok shortlist runs and records nonzero token usage",

@@ -35,6 +35,7 @@ export type HostedSearchEvent =
       sources: HostedSearchSource[];
       boardCount: number;
       aiConfigured: boolean;
+      aiProvider: string;
       searchedLocation?: string;
       indexedJobs?: number;
     }

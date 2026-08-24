@@ -53,6 +53,20 @@ function stateFor(value) {
   return null;
 }
 
+function explicitStateLocation(value) {
+  const raw = String(value ?? "").replace(/\s+/g, " ").trim();
+  const clean = normalized(raw);
+  for (const [code, name] of Object.entries(US_STATES)) {
+    for (const suffix of [code, name]) {
+      if (!clean.endsWith(` ${suffix}`)) continue;
+      const escaped = suffix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+      const city = raw.replace(new RegExp(`[\\s,]+${escaped}$`, "i"), "").trim();
+      if (city) return `${city}, ${code.toUpperCase()}`;
+    }
+  }
+  return "";
+}
+
 function stateInLocation(location, state) {
   return hasTerm(location, state.code) || location.includes(state.name);
 }
@@ -115,6 +129,8 @@ export function resolveRequestedLocation(input, preferredLocations = [], request
   const clean = String(input ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
   if (!clean || clean.includes(",") || /\bremote\b|\banywhere\b/i.test(clean)) return clean;
   if (stateFor(clean)) return clean;
+  const explicit = explicitStateLocation(clean);
+  if (explicit) return explicit.slice(0, 120);
 
   const preferred = preferredLocations
     .map((value) => String(value ?? "").replace(/\s+/g, " ").trim())

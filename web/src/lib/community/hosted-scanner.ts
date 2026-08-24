@@ -462,13 +462,15 @@ export async function runHostedSearch(
   } catch {
     // Community sources still provide a useful partial result if the index CDN is down.
   }
+  const aiProvider = resolveCommunityAiProvider();
   emit({
     kind: "start",
     sources: HOSTED_SEARCH_SOURCES,
     boardCount:
       (manifest?.chunks.length ?? 0) +
       (input.includeCommunitySources === false ? 0 : COMMUNITY.length),
-    aiConfigured: resolveCommunityAiProvider().configured,
+    aiConfigured: aiProvider.configured,
+    aiProvider: aiProvider.displayName,
     searchedLocation: input.location,
     indexedJobs: manifest?.totalJobs,
   });

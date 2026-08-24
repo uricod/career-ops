@@ -77,3 +77,25 @@ test("a state-only search is not duplicated by location fallback", () => {
   });
   assert.equal(resolveRequestedLocation("NY", [], headers), "NY");
 });
+
+test("a city followed by a state code wins over the visitor's current region", () => {
+  const headers = new Headers({
+    "x-vercel-ip-country": "US",
+    "x-vercel-ip-country-region": "FL",
+  });
+  assert.equal(
+    resolveRequestedLocation("Lakewood Nj", [], headers),
+    "Lakewood, NJ",
+  );
+});
+
+test("a spelled-out state suffix is normalized without using IP fallback", () => {
+  const headers = new Headers({
+    "x-vercel-ip-country": "US",
+    "x-vercel-ip-country-region": "FL",
+  });
+  assert.equal(
+    resolveRequestedLocation("Lakewood New Jersey", [], headers),
+    "Lakewood, NJ",
+  );
+});

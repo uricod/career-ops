@@ -52,6 +52,7 @@ export function JobSearchClient() {
   const [error, setError] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+  const [aiProvider, setAiProvider] = useState("AI");
   const [searchedLocation, setSearchedLocation] = useState("");
   const [indexedJobs, setIndexedJobs] = useState(0);
   const [resume, setResume] = useState("");
@@ -74,6 +75,7 @@ export function JobSearchClient() {
   function handleEvent(event: HostedSearchEvent) {
     if (event.kind === "start") {
       setAiConfigured(event.aiConfigured);
+      setAiProvider(event.aiProvider || "AI");
       setSearchedLocation(event.searchedLocation || "");
       setIndexedJobs(Number(event.indexedJobs || 0));
     }
@@ -338,10 +340,10 @@ export function JobSearchClient() {
             <div>
               <p className="text-xs font-bold uppercase tracking-[.18em] text-brand-text">Unified results</p>
               <h2 className="mt-2 font-serif text-4xl text-landing">{rankingMode ? "Your ranked shortlist" : `${results.length} roles found`}</h2>
-              {rankingMode && <p className="mt-2 text-xs text-faint">{rankingMode === "ai" ? `AI ranked · ${rankingUsage.toLocaleString()} tokens used` : "Private keyword rank · AI key not connected · 0 tokens"}</p>}
+              {rankingMode && <p className="mt-2 text-xs text-faint">{rankingMode === "ai" ? `${aiProvider} ranked · ${rankingUsage.toLocaleString()} tokens used` : "Private keyword rank · AI key not connected · 0 tokens"}</p>}
             </div>
             <button type="button" onClick={() => { setResume(sessionStorage.getItem("career-ops:resume-session") || ""); setShowAi((current) => !current); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-foreground px-5 text-sm font-semibold text-background">
-              <BrainCircuit className="size-4" /> {rankingMode ? "Run AI again" : "Use AI to shortlist"}
+              <BrainCircuit className="size-4" /> {rankingMode ? `Run ${aiProvider} again` : `Use ${aiProvider} to shortlist`}
             </button>
           </div>
 
