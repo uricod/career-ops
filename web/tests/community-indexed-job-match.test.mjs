@@ -61,3 +61,19 @@ test("Vercel location headers resolve the member's current city", () => {
   assert.equal(resolveRequestedLocation("Lakewood", [], headers), "Lakewood, NJ");
 });
 
+test("a city-only search falls back to the visitor's trusted US region", () => {
+  const headers = new Headers({
+    "x-vercel-ip-city": "Jackson",
+    "x-vercel-ip-country": "US",
+    "x-vercel-ip-country-region": "NJ",
+  });
+  assert.equal(resolveRequestedLocation("Lakewood", [], headers), "Lakewood, NJ");
+});
+
+test("a state-only search is not duplicated by location fallback", () => {
+  const headers = new Headers({
+    "x-vercel-ip-country": "US",
+    "x-vercel-ip-country-region": "NJ",
+  });
+  assert.equal(resolveRequestedLocation("NY", [], headers), "NY");
+});

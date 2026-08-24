@@ -5,6 +5,7 @@ import {
   BrainCircuit,
   CheckCircle2,
   CircleAlert,
+  ExternalLink,
   LoaderCircle,
   LockKeyhole,
   Sparkles,
@@ -15,6 +16,7 @@ import type { FitEvaluation } from "@/lib/community/types";
 export function FitCheckClient() {
   const [job, setJob] = useState("");
   const [resume, setResume] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [result, setResult] = useState<FitEvaluation | null>(null);
   const [usage, setUsage] = useState<{
     total_tokens: number;
@@ -25,6 +27,7 @@ export function FitCheckClient() {
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     setJob(sessionStorage.getItem("career-ops:job-session") || "");
+    setSourceUrl(sessionStorage.getItem("career-ops:job-source-url-session") || "");
     setResume(sessionStorage.getItem("career-ops:resume-session") || "");
   }, []);
   async function submit(e: FormEvent) {
@@ -75,6 +78,20 @@ export function FitCheckClient() {
       </div>
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_.85fr]">
         <form onSubmit={submit} className="space-y-4">
+          {!job && sourceUrl && (
+            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-sm leading-6 text-amber-900 dark:text-amber-200">
+              The ATS index does not retain this posting’s full text. Open the
+              original, copy the job description, and paste it below. {" "}
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-semibold underline"
+              >
+                Open original <ExternalLink className="size-3.5" />
+              </a>
+            </div>
+          )}
           <label className="block text-sm font-semibold">
             Job description{" "}
             <span className="font-normal text-faint">(untrusted data)</span>

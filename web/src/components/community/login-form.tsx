@@ -13,7 +13,7 @@ import {
 import { COMMUNITY_NAME } from "@/lib/community/config";
 import { getSupabaseBrowserClient } from "@/lib/community/supabase-browser";
 
-type LoginMode = "password" | "activate" | "link";
+type LoginMode = "password" | "activate" | "link" | "reset";
 
 export function LoginForm({
   initialInvite = "",
@@ -54,16 +54,30 @@ export function LoginForm({
     setBusy(true);
     setError("");
     try {
-      if (mode === "link") {
-        const response = await fetch("/api/community/auth/request-link", {
+      if (mode === "link" || mode === "reset") {
+        const response = await fetch(
+          mode === "reset"
+            ? "/api/community/auth/reset-password"
+            : "/api/community/auth/request-link",
+          {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ email, invite }),
-        });
+          },
+        );
         const body = await response.json();
         if (!response.ok)
-          throw new Error(body.error || "Private link unavailable.");
-        setMessage("Check your inbox. The private link expires shortly.");
+          throw new Error(
+            body.error ||
+              (mode === "reset"
+                ? "Password recovery is unavailable."
+                : "Private link unavailable."),
+          );
+        setMessage(
+          mode === "reset"
+            ? "If that member account exists, a password-reset link is on its way."
+            : "Check your inbox. The private link expires shortly.",
+        );
         return;
       }
 
@@ -125,13 +139,17 @@ export function LoginForm({
       ? "Welcome back."
       : mode === "activate"
         ? "Create your member login."
-        : "Get a private sign-in link.";
+        : mode === "link"
+          ? "Get a private sign-in link."
+          : "Reset your password.";
   const description =
     mode === "password"
       ? "Sign in with the email and password attached to your membership."
       : mode === "activate"
         ? "Your invitation is your one-time access key. Choose the password you’ll use from now on."
-        : "We’ll email a short-lived, one-time link to an active or invited member.";
+        : mode === "link"
+          ? "We’ll email a short-lived, one-time link to an active or invited member."
+          : "We’ll email a short-lived recovery link to your member address.";
 
   return (
     <main className="grid min-h-screen bg-[#f4f2ed] text-[#181815] dark:bg-[#10100f] dark:text-[#f2f0e9] lg:grid-cols-[.85fr_1.15fr]">
@@ -197,7 +215,7 @@ export function LoginForm({
                 </Field>
               )}
 
-              {mode !== "link" && (
+              {mode !== "link" && mode !== "reset" && (
                 <Field
                   icon={LockKeyhole}
                   label={mode === "activate" ? "Create password" : "Password"}
@@ -240,7 +258,7 @@ export function LoginForm({
               >
                 {busy ? (
                   <LoaderCircle className="size-4 animate-spin" />
-                ) : mode === "link" ? (
+                ) : mode === "link" || mode === "reset" ? (
                   <Mail className="size-4" />
                 ) : (
                   <LockKeyhole className="size-4" />
@@ -251,7 +269,9 @@ export function LoginForm({
                     ? "Sign in"
                     : mode === "activate"
                       ? "Activate membership"
-                      : "Send private link"}
+                      : mode === "reset"
+                        ? "Send reset link"
+                        : "Send private link"}
               </button>
               {error && (
                 <p role="alert" className="text-sm text-rose-700 dark:text-rose-400">
@@ -274,6 +294,9 @@ export function LoginForm({
               <button onClick={() => switchMode("link")}>
                 Email me a private link
               </button>
+            )}
+            {mode !== "reset" && (
+              <button onClick={() => switchMode("reset")}>Forgot password?</button>
             )}
           </div>
         </div>

@@ -68,7 +68,13 @@ export async function POST(request: Request) {
           request.headers,
         );
         const summary = await runHostedSearch(
-          { query, location: resolvedLocation, sinceDays },
+          {
+            query,
+            location: resolvedLocation,
+            sinceDays,
+            includeCommunitySources:
+              profile?.include_community_sources !== false,
+          },
           emit,
         );
         emit({

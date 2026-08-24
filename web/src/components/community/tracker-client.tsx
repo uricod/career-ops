@@ -132,7 +132,15 @@ export function TrackerClient() {
     status: CommunityApplication["status"],
   ) {
     if (supabase && item.user_id !== "demo") {
-      await supabase.from("applications").update({ status }).eq("id", item.id);
+      const { error: updateError } = await supabase
+        .from("applications")
+        .update({ status })
+        .eq("id", item.id);
+      if (updateError) {
+        setNotice("That status could not be saved. Try again.");
+        return;
+      }
+      setNotice("");
       await load();
       return;
     }
@@ -146,7 +154,15 @@ export function TrackerClient() {
   }
   async function remove(item: CommunityApplication) {
     if (supabase && item.user_id !== "demo") {
-      await supabase.from("applications").delete().eq("id", item.id);
+      const { error: deleteError } = await supabase
+        .from("applications")
+        .delete()
+        .eq("id", item.id);
+      if (deleteError) {
+        setNotice("That saved job could not be removed. Try again.");
+        return;
+      }
+      setNotice("");
       await load();
       return;
     }

@@ -114,6 +114,7 @@ export function indexedJobMatch(job, input, now = Date.now()) {
 export function resolveRequestedLocation(input, preferredLocations = [], requestHeaders = new Headers()) {
   const clean = String(input ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
   if (!clean || clean.includes(",") || /\bremote\b|\banywhere\b/i.test(clean)) return clean;
+  if (stateFor(clean)) return clean;
 
   const preferred = preferredLocations
     .map((value) => String(value ?? "").replace(/\s+/g, " ").trim())
@@ -128,6 +129,13 @@ export function resolveRequestedLocation(input, preferredLocations = [], request
   }
   const region = (requestHeaders.get("x-vercel-ip-country-region") || "").trim();
   if (ipCity && region && normalized(ipCity) === normalized(clean))
+    return `${clean}, ${region}`.slice(0, 120);
+  // Public ATS feeds commonly retain only the state even when the original
+  // posting names a city. For a city-only query, use the visitor's trusted
+  // Vercel region as an explicit, visible fallback. Users can always override
+  // it by typing a state (for example, "Lakewood, CO").
+  const country = (requestHeaders.get("x-vercel-ip-country") || "").trim();
+  if (region && (!country || country.toUpperCase() === "US"))
     return `${clean}, ${region}`.slice(0, 120);
   return clean;
 }

@@ -30,6 +30,13 @@ function list(value: string) {
     .filter(Boolean)
     .slice(0, 12);
 }
+function locationList(value: string) {
+  return value
+    .split(/[;\n]/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+}
 
 export function ProfileClient() {
   const supabase = getSupabaseBrowserClient();
@@ -54,11 +61,12 @@ export function ProfileClient() {
           data: { user },
         } = await supabase.auth.getUser();
         if (user) {
-          const { data } = await supabase
+          const { data, error: loadError } = await supabase
             .from("profiles")
             .select("*")
             .eq("id", user.id)
             .single();
+          if (loadError) setError("Your profile could not be loaded. Try refreshing.");
           if (data) setProfile(data as CommunityProfile);
           else setProfile({ ...profile, id: user.id });
           setLoading(false);
@@ -191,10 +199,12 @@ export function ProfileClient() {
         />
         <Field
           label="Preferred locations"
-          hint="Comma-separated"
-          value={profile.locations.join(", ")}
-          onChange={(v) => setProfile({ ...profile, locations: list(v) })}
-          placeholder="Remote, Brooklyn, Lakewood"
+          hint="Separate locations with semicolons"
+          value={profile.locations.join("; ")}
+          onChange={(v) =>
+            setProfile({ ...profile, locations: locationList(v) })
+          }
+          placeholder="Remote; Brooklyn, NY; Lakewood, NJ"
         />
         <fieldset>
           <legend className="text-sm font-semibold">Work modes</legend>

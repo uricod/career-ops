@@ -224,8 +224,12 @@ export function JobSearchClient() {
   }
 
   function openFitCheck(result: HostedSearchResult) {
-    if (result.description.length >= 80)
+    sessionStorage.removeItem("career-ops:job-session");
+    sessionStorage.setItem("career-ops:job-source-url-session", result.url);
+    if (result.description.length >= 80) {
       sessionStorage.setItem("career-ops:job-session", result.description);
+      sessionStorage.removeItem("career-ops:job-source-url-session");
+    }
     window.location.href = "/community/fit";
   }
 
@@ -261,7 +265,7 @@ export function JobSearchClient() {
           <label className="flex min-h-14 items-center gap-3 rounded-2xl bg-background px-4 focus-within:ring-2 focus-within:ring-brand/40">
             <MapPin className="size-5 text-faint" />
             <span className="sr-only">Location</span>
-            <input maxLength={120} value={location} onChange={(event) => setLocation(event.target.value)} className="w-full bg-transparent text-sm outline-none placeholder:text-faint" placeholder="Remote, Brooklyn, Lakewood…" />
+            <input maxLength={120} value={location} onChange={(event) => setLocation(event.target.value)} className="w-full bg-transparent text-sm outline-none placeholder:text-faint" placeholder="Remote, Brooklyn, Lakewood, NJ…" />
           </label>
           <label className="grid min-h-14 content-center rounded-2xl bg-background px-4 text-[10px] font-bold uppercase tracking-wider text-faint">
             Posted within
@@ -276,7 +280,8 @@ export function JobSearchClient() {
         </div>
         <p className="mt-3 px-2 text-[11px] text-faint">
           1.4M+ current listings from 20,000+ public ATS company boards + All
-          Frum Jobs, YidJob, TrefAJob, and Luach. No AI tokens used.
+          Frum Jobs, YidJob, TrefAJob, and Luach. Index search is free; Grok
+          runs only when you choose AI shortlist or Full fit check.
         </p>
       </form>
 
@@ -286,7 +291,7 @@ export function JobSearchClient() {
             <div>
               <h2 className="font-semibold">{running ? "Search running live" : "Search complete"}</h2>
               <p className="mt-1 text-xs text-faint">
-                {results.length} unified matches · 0 AI tokens
+                {results.length} unified matches · index-only search (no AI charge)
                 {searchedLocation && searchedLocation.toLowerCase() !== location.trim().toLowerCase()
                   ? ` · resolved to ${searchedLocation}`
                   : ""}
@@ -312,7 +317,7 @@ export function JobSearchClient() {
           </div>
           {summary && (
             <p className="mt-4 text-xs text-muted">
-              {indexedJobs > 0 ? `Searched ${indexedJobs.toLocaleString()} indexed listings plus community boards. ` : ""}
+              {indexedJobs > 0 ? `Searched ${indexedJobs.toLocaleString()} indexed listings plus your enabled community boards. ` : ""}
               {summary.failedBoards > 0 ? `${summary.failedBoards} data segments or boards did not answer; the run continued.` : "Every data source answered."}
               {" "}<a className="underline" href="https://github.com/Feashliaa/job-board-aggregator" target="_blank" rel="noreferrer">ATS index attribution</a>.
             </p>
@@ -392,7 +397,7 @@ export function JobSearchClient() {
       {!running && summary && results.length === 0 && (
         <div className="mt-8 rounded-3xl border border-dashed border-border p-12 text-center">
           <p className="font-serif text-2xl text-landing">No honest matches this run.</p>
-          <p className="mt-2 text-sm text-muted">Try a broader title or remove the location. A changed search rotates through a different slice of public company boards.</p>
+          <p className="mt-2 text-sm text-muted">Try a broader title, include the state with a city, or remove the location. City-only searches use your current region when available because many ATS feeds publish only a state.</p>
         </div>
       )}
     </div>

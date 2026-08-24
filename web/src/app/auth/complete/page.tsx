@@ -17,6 +17,7 @@ export default function CompleteSignInPage() {
       const refreshToken = fragment.get("refresh_token");
       const query = new URLSearchParams(window.location.search);
       const invite = query.get("invite");
+      const recovery = query.get("mode") === "recovery";
       const next = safeCommunityPath(query.get("next"));
 
       // Never leave bearer tokens in browser history longer than necessary.
@@ -54,6 +55,11 @@ export default function CompleteSignInPage() {
         return;
       }
 
+      if (recovery) {
+        if (active) setMessage("Recovery link verified. Opening password reset…");
+        window.location.replace("/auth/reset-password");
+        return;
+      }
       if (active) setMessage("Welcome back. Opening The Commons…");
       window.location.replace(next);
     }

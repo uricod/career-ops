@@ -27,6 +27,7 @@ type SearchInput = {
   query: string;
   location: string;
   sinceDays: number;
+  includeCommunitySources?: boolean;
 };
 
 type SearchSummary = {
@@ -464,7 +465,9 @@ export async function runHostedSearch(
   emit({
     kind: "start",
     sources: HOSTED_SEARCH_SOURCES,
-    boardCount: (manifest?.chunks.length ?? 0) + COMMUNITY.length,
+    boardCount:
+      (manifest?.chunks.length ?? 0) +
+      (input.includeCommunitySources === false ? 0 : COMMUNITY.length),
     aiConfigured: resolveCommunityAiProvider().configured,
     searchedLocation: input.location,
     indexedJobs: manifest?.totalJobs,
@@ -507,8 +510,15 @@ export async function runHostedSearch(
   })();
 
   const communityFetchers = [allFrumJobs, yidJobs, trefJobs, luachJobs];
-  const communityRun = Promise.all(
-    COMMUNITY.map(async (source, index) => {
+  const communityRun = input.includeCommunitySources === false
+    ? Promise.all(
+        COMMUNITY.map(async (source) => {
+          emit({ kind: "sourceStart", source: source.id, boards: 0 });
+          emit({ kind: "sourceDone", source: source.id, checked: 0, matches: 0, failed: 0 });
+        }),
+      )
+    : Promise.all(
+      COMMUNITY.map(async (source, index) => {
       emit({ kind: "sourceStart", source: source.id, boards: 1 });
       let matches = 0;
       let failed = 0;
@@ -539,8 +549,8 @@ export async function runHostedSearch(
         matches,
         failed,
       });
-    }),
-  );
+      }),
+    );
   await Promise.all([indexRun, communityRun]);
 
   results.sort((a, b) => {

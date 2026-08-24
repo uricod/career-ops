@@ -61,23 +61,31 @@ export function AdminConsole({
 
   async function patch(body: Record<string, unknown>) {
     setError("");
-    const response = await fetch("/api/community/admin/invitations", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      setError(result.error || "Update failed.");
-      return;
+    try {
+      const response = await fetch("/api/community/admin/invitations", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setError(result.error || "Update failed.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Update failed. Check your connection and try again.");
     }
-    router.refresh();
   }
 
   async function copyInvite() {
-    await navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setError("Copy failed. Select the invitation link manually.");
+    }
   }
 
   return (

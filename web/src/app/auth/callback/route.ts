@@ -7,6 +7,8 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
   const tokenType = url.searchParams.get("type");
+  const recovery =
+    tokenType === "recovery" || url.searchParams.get("mode") === "recovery";
   const invite = url.searchParams.get("invite");
   const next = safeCommunityPath(url.searchParams.get("next"));
   const supabase = await getSupabaseServerClient();
@@ -15,7 +17,9 @@ export async function GET(request: Request) {
       ? "email"
       : tokenType === "magiclink"
         ? "magiclink"
-        : null;
+        : tokenType === "recovery"
+          ? "recovery"
+          : null;
   if (supabase && (code || (tokenHash && emailTokenType))) {
     const { error } = code
       ? await supabase.auth.exchangeCodeForSession(code)
@@ -24,7 +28,13 @@ export async function GET(request: Request) {
           type: emailTokenType!,
         });
     if (!error) {
-      if (invite) {
+      if (recovery) {
+        const { data: active, error: activeError } = await supabase.rpc(
+          "is_active_member",
+        );
+        if (!activeError && active === true)
+          return privateRedirect(new URL("/auth/reset-password", url.origin));
+      } else if (invite) {
         const { data: redeemed, error: redeemError } = await supabase.rpc(
           "redeem_invitation",
           { p_code: invite },

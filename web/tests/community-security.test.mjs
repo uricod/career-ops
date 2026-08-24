@@ -95,6 +95,26 @@ test("returning members use passwords and invitees create one once", () => {
   assert.match(profile, /Password login/);
 });
 
+test("returning members can recover a forgotten password", () => {
+  const form = read("web/src/components/community/login-form.tsx");
+  const route = read(
+    "web/src/app/api/community/auth/reset-password/route.ts",
+  );
+  const complete = read("web/src/app/auth/complete/page.tsx");
+  const reset = read("web/src/components/community/reset-password-form.tsx");
+  const proxy = read("web/src/proxy.ts");
+  assert.match(form, /Forgot password\?/);
+  assert.match(form, /\/api\/community\/auth\/reset-password/);
+  assert.match(route, /auth\.auth\.resetPasswordForEmail/);
+  assert.match(route, /mode", "recovery"/);
+  assert.match(route, /consume_auth_attempt/);
+  assert.match(complete, /query\.get\("mode"\) === "recovery"/);
+  assert.match(complete, /\/auth\/reset-password/);
+  assert.match(reset, /supabase\.auth\.updateUser/);
+  assert.match(reset, /is_active_member/);
+  assert.match(proxy, /path === "\/auth\/reset-password"/);
+});
+
 test("cookie-backed mutations require the exact deployment origin", () => {
   const url = "https://community.example/api/community/admin/invitations";
   assert.equal(
@@ -203,6 +223,7 @@ test("every cookie-backed Community mutation has an origin gate", () => {
     "web/src/app/api/community/search/route.ts",
     "web/src/app/api/community/rank/route.ts",
     "web/src/app/api/community/auth/request-link/route.ts",
+    "web/src/app/api/community/auth/reset-password/route.ts",
     "web/src/app/api/community/auth/activate/route.ts",
     "web/src/app/api/community/admin/invitations/route.ts",
   ])
