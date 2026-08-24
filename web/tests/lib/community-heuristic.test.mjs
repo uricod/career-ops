@@ -29,7 +29,7 @@ test("community boards run through the hosted scanner, not a link directory", ()
     assert.match(scanner, new RegExp(expected.replace(".", "\\."), "i"));
   }
   assert.match(scanner, /sourceDone/);
-  assert.match(scanner, /greenhouse_companies\.json/);
-  assert.match(scanner, /lever_companies\.json/);
-  assert.match(scanner, /ashby_companies\.json/);
+  assert.match(scanner, /jobs_manifest\.json/);
+  assert.match(scanner, /jobs_chunk_/);
+  assert.match(scanner, /gunzipSync/);
 });

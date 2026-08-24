@@ -48,7 +48,7 @@ export async function getCommunityMembership() {
     return { supabase, user, profile: null, active: false, admin: false };
   const { data: profile } = await supabase
     .from("profiles")
-    .select("membership_status,daily_token_limit")
+    .select("membership_status,daily_token_limit,locations")
     .eq("id", user.id)
     .maybeSingle();
   return {

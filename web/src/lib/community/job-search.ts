@@ -19,12 +19,10 @@ export type HostedSearchSource = {
 
 export const HOSTED_SEARCH_SOURCES: HostedSearchSource[] = [
   {
-    id: "greenhouse",
-    label: "Greenhouse",
-    detail: "public company boards",
+    id: "atsindex",
+    label: "Global ATS index",
+    detail: "20,000+ public company boards",
   },
-  { id: "lever", label: "Lever", detail: "public company boards" },
-  { id: "ashby", label: "Ashby", detail: "public company boards" },
   { id: "allfrum", label: "All Frum Jobs", detail: "community board" },
   { id: "yidjob", label: "YidJob", detail: "community board" },
   { id: "trefajob", label: "TrefAJob", detail: "community board" },
@@ -37,6 +35,8 @@ export type HostedSearchEvent =
       sources: HostedSearchSource[];
       boardCount: number;
       aiConfigured: boolean;
+      searchedLocation?: string;
+      indexedJobs?: number;
     }
   | { kind: "sourceStart"; source: string; boards: number }
   | {

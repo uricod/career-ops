@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
+import { gunzipSync } from "node:zlib";
 import {
   cleanSearchText,
   HOSTED_SEARCH_SOURCES,
@@ -7,6 +8,11 @@ import {
   type HostedSearchResult,
 } from "./job-search";
 import { resolveCommunityAiProvider } from "./ai-provider.mjs";
+import {
+  indexedJobMatch,
+  locationMatch,
+  searchWords,
+} from "./indexed-job-match.mjs";
 
 type RawJob = {
   title?: unknown;
@@ -29,37 +35,57 @@ type SearchSummary = {
   failedBoards: number;
 };
 
-type AtsConfig = {
-  id: "greenhouse" | "lever" | "ashby";
-  label: string;
-  dataset: string;
-  sample: number;
+type IndexedJob = {
+  title?: unknown;
+  url?: unknown;
+  company?: unknown;
+  location?: unknown;
+  ats?: unknown;
+  first_seen?: unknown;
+  scraped_at?: unknown;
 };
 
-const DATASET_BASE =
-  "https://raw.githubusercontent.com/Feashliaa/job-board-aggregator/main/data";
-const SLUG = /^[A-Za-z0-9._-]{1,100}$/;
+type IndexedManifest = {
+  chunks?: unknown;
+  totalJobs?: unknown;
+  last_updated?: unknown;
+};
+
+type IndexedCandidate = {
+  job: IndexedJob;
+  matchedTerms: string[];
+  postedAt: string;
+  score: number;
+};
+
+type IndexSummary = {
+  results: HostedSearchResult[];
+  chunksChecked: number;
+  failedChunks: number;
+  totalJobs: number;
+};
+
+type IndexProgress = {
+  checked: number;
+  total: number;
+  matches: number;
+};
+
+type IndexScanOptions = {
+  input: SearchInput;
+  manifest: IndexResult;
+  onProgress: (progress: IndexProgress) => void;
+};
+
+type IndexResult = {
+  chunks: string[];
+  totalJobs: number;
+  version: string;
+};
+
+const INDEX_BASE = "https://feashliaa.github.io/job-board-data/data/chunks";
 const MAX_RESULTS = 120;
-const ATS: AtsConfig[] = [
-  {
-    id: "greenhouse",
-    label: "Greenhouse",
-    dataset: `${DATASET_BASE}/greenhouse_companies.json`,
-    sample: 24,
-  },
-  {
-    id: "lever",
-    label: "Lever",
-    dataset: `${DATASET_BASE}/lever_companies.json`,
-    sample: 24,
-  },
-  {
-    id: "ashby",
-    label: "Ashby",
-    dataset: `${DATASET_BASE}/ashby_companies.json`,
-    sample: 12,
-  },
-];
+const INDEX_CANDIDATE_LIMIT = 1_000;
 
 const COMMUNITY = [
   { id: "allfrum", label: "All Frum Jobs" },
@@ -117,69 +143,42 @@ async function text(url: string, timeout?: number) {
   return response(url, {}, timeout).then((item) => item.text());
 }
 
-function stableSample(values: string[], count: number, seed: string) {
-  const clean = [...new Set(values.filter((value) => SLUG.test(value)))];
-  if (clean.length <= count) return clean;
-  const digest = createHash("sha256").update(seed).digest();
-  const start = digest.readUInt32BE(0) % clean.length;
-  const stride = Math.max(1, Math.floor(clean.length / count));
-  const picked: string[] = [];
-  for (let index = 0; index < count; index += 1)
-    picked.push(clean[(start + index * stride) % clean.length]);
-  return [...new Set(picked)];
-}
-
-function companyName(slug: string) {
-  return slug
-    .replace(/[._-]+/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function atsUrl(source: AtsConfig["id"], slug: string) {
-  if (source === "greenhouse")
-    return `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`;
-  if (source === "lever")
-    return `https://api.lever.co/v0/postings/${slug}?mode=json`;
-  return `https://api.ashbyhq.com/posting-api/job-board/${slug}?includeCompensation=true`;
-}
-
-async function atsJobs(source: AtsConfig["id"], slug: string): Promise<RawJob[]> {
-  const payload = (await json(atsUrl(source, slug), source === "ashby" ? 35_000 : 18_000)) as Record<string, unknown> | unknown[];
-  if (source === "greenhouse") {
-    const jobs = Array.isArray((payload as Record<string, unknown>).jobs)
-      ? ((payload as Record<string, unknown>).jobs as Array<Record<string, unknown>>)
-      : [];
-    return jobs.map((job) => ({
-      title: job.title,
-      url: job.absolute_url,
-      company: companyName(slug),
-      location: (job.location as Record<string, unknown> | undefined)?.name,
-      description: job.content,
-      postedAt: job.first_published ?? job.updated_at,
-    }));
-  }
-  if (source === "lever") {
-    const jobs = Array.isArray(payload) ? (payload as Array<Record<string, unknown>>) : [];
-    return jobs.map((job) => ({
-      title: job.text,
-      url: job.hostedUrl,
-      company: companyName(slug),
-      location: (job.categories as Record<string, unknown> | undefined)?.location,
-      description: job.descriptionPlain,
-      postedAt: job.createdAt,
-    }));
-  }
-  const jobs = Array.isArray((payload as Record<string, unknown>).jobs)
-    ? ((payload as Record<string, unknown>).jobs as Array<Record<string, unknown>>)
+async function indexedManifest(): Promise<IndexResult> {
+  const payload = (await json(`${INDEX_BASE}/jobs_manifest.json`, 20_000)) as IndexedManifest;
+  const chunks = Array.isArray(payload.chunks)
+    ? payload.chunks.map(String).filter((chunk) => /^jobs_chunk_\d+\.json\.gz$/.test(chunk))
     : [];
-  return jobs.map((job) => ({
-    title: job.title,
-    url: job.jobUrl,
-    company: companyName(slug),
-    location: job.location,
-    description: job.descriptionPlain ?? job.descriptionHtml ?? job.description,
-    postedAt: job.publishedAt,
-  }));
+  if (!chunks.length) throw new Error("index_manifest_empty");
+  return {
+    chunks,
+    totalJobs: Math.max(0, Number(payload.totalJobs) || 0),
+    version: String(payload.last_updated || "current"),
+  };
+}
+
+async function indexedChunk(chunk: string, version: string): Promise<IndexedJob[]> {
+  const url = `${INDEX_BASE}/${chunk}?v=${encodeURIComponent(version)}`;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const fetched = await fetch(url, {
+        redirect: "error",
+        cache: "force-cache",
+        headers: {
+          Accept: "application/gzip, application/octet-stream",
+          "User-Agent": "Career-Ops-Community/1.0 (+https://career-ops.org)",
+        },
+        signal: AbortSignal.timeout(25_000),
+      });
+      if (!fetched.ok) throw new Error(`HTTP ${fetched.status}`);
+      const packed = Buffer.from(await fetched.arrayBuffer());
+      const parsed = JSON.parse(gunzipSync(packed).toString("utf8"));
+      return Array.isArray(parsed) ? (parsed as IndexedJob[]) : [];
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("index_chunk_failed");
 }
 
 function xmlTag(block: string, tag: string) {
@@ -302,14 +301,6 @@ async function luachJobs(): Promise<RawJob[]> {
   return pages.flat();
 }
 
-function words(value: string) {
-  return value
-    .toLowerCase()
-    .split(/[^a-z0-9+#.]+/)
-    .filter((word) => word.length > 1)
-    .slice(0, 12);
-}
-
 function normalizeJob(
   job: RawJob,
   source: string,
@@ -330,18 +321,11 @@ function normalizeJob(
   const company = cleanSearchText(job.company, 140) || sourceLabel;
   const location = cleanSearchText(job.location, 220);
   const description = visibleText(job.description);
-  const queryWords = words(input.query);
-  const locationWords = words(input.location);
-  const titleHaystack = `${title} ${description.slice(0, 500)}`.toLowerCase();
-  const locationHaystack = location.toLowerCase();
+  const queryWords = searchWords(input.query);
+  const titleHaystack = title.toLowerCase();
   const matchedTerms = queryWords.filter((word) => titleHaystack.includes(word));
   if (queryWords.length && matchedTerms.length === 0) return null;
-  if (
-    locationWords.length &&
-    !locationWords.some((word) => locationHaystack.includes(word)) &&
-    !/remote|anywhere|all locations/i.test(locationHaystack)
-  )
-    return null;
+  if (!locationMatch(location, input.location).matched) return null;
   const postedAt = dateText(job.postedAt);
   if (
     postedAt &&
@@ -374,6 +358,85 @@ async function parallel<T>(items: T[], concurrency: number, task: (item: T) => P
   );
 }
 
+function indexedCompany(value: unknown) {
+  const clean = cleanSearchText(value, 140);
+  return clean
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function indexedResult(candidate: IndexedCandidate): HostedSearchResult | null {
+  const title = cleanSearchText(candidate.job.title, 180);
+  const company = indexedCompany(candidate.job.company) || "Company board";
+  const location = cleanSearchText(candidate.job.location, 220);
+  const urlValue = cleanSearchText(candidate.job.url, 2_000);
+  let url: URL;
+  try {
+    url = new URL(urlValue);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return null;
+  } catch {
+    return null;
+  }
+  const sourceLabel = cleanSearchText(candidate.job.ats, 60) || "Company ATS";
+  const source = sourceLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "ats";
+  return {
+    id: createHash("sha256").update(url.href).digest("hex").slice(0, 20),
+    url: url.href,
+    company,
+    title,
+    location,
+    source,
+    sourceLabel,
+    postedAt: candidate.postedAt,
+    description: "",
+    matchedTerms: candidate.matchedTerms,
+  };
+}
+
+async function scanIndexedJobs({ input, manifest, onProgress }: IndexScanOptions): Promise<IndexSummary> {
+  const candidates: IndexedCandidate[] = [];
+  let checked = 0;
+  let failed = 0;
+  await parallel(manifest.chunks, 8, async (chunk) => {
+    try {
+      const jobs = await indexedChunk(chunk, manifest.version);
+      for (const job of jobs) {
+        const match = indexedJobMatch(job, input);
+        if (match) candidates.push({ job, ...match });
+      }
+      if (candidates.length > INDEX_CANDIDATE_LIMIT * 2) {
+        candidates.sort((a, b) => b.score - a.score || b.postedAt.localeCompare(a.postedAt));
+        candidates.length = INDEX_CANDIDATE_LIMIT;
+      }
+    } catch {
+      failed += 1;
+    } finally {
+      checked += 1;
+      onProgress({
+        checked,
+        total: manifest.chunks.length,
+        matches: Math.min(candidates.length, MAX_RESULTS),
+      });
+    }
+  });
+  candidates.sort((a, b) => b.score - a.score || b.postedAt.localeCompare(a.postedAt));
+  const seen = new Set<string>();
+  const results: HostedSearchResult[] = [];
+  for (const candidate of candidates) {
+    const result = indexedResult(candidate);
+    if (!result || seen.has(result.url)) continue;
+    seen.add(result.url);
+    results.push(result);
+    if (results.length >= MAX_RESULTS) break;
+  }
+  return {
+    results,
+    chunksChecked: checked,
+    failedChunks: failed,
+    totalJobs: manifest.totalJobs,
+  };
+}
+
 export async function runHostedSearch(
   input: SearchInput,
   emit: (event: HostedSearchEvent) => void,
@@ -392,52 +455,56 @@ export async function runHostedSearch(
     return true;
   };
 
+  let manifest: IndexResult | null = null;
+  try {
+    manifest = await indexedManifest();
+  } catch {
+    // Community sources still provide a useful partial result if the index CDN is down.
+  }
   emit({
     kind: "start",
     sources: HOSTED_SEARCH_SOURCES,
-    boardCount: ATS.reduce((sum, config) => sum + config.sample, 0) + COMMUNITY.length,
+    boardCount: (manifest?.chunks.length ?? 0) + COMMUNITY.length,
     aiConfigured: resolveCommunityAiProvider().configured,
+    searchedLocation: input.location,
+    indexedJobs: manifest?.totalJobs,
   });
-  const atsLists = await Promise.all(
-    ATS.map(async (config) => {
-      try {
-        const payload = await json(config.dataset);
-        const list = Array.isArray(payload) ? payload.map(String) : [];
-        return stableSample(list, config.sample, `${input.query}|${input.location}|${config.id}`);
-      } catch {
-        return [];
-      }
-    }),
-  );
-  const atsRun = Promise.all(
-    ATS.map(async (config, configIndex) => {
-      const slugs = atsLists[configIndex];
-      let checked = 0;
-      let failed = 0;
-      let matches = 0;
-      emit({ kind: "sourceStart", source: config.id, boards: slugs.length });
-      await parallel(slugs, 6, async (slug) => {
-        try {
-          for (const job of await atsJobs(config.id, slug))
-            if (add(job, config.id, config.label)) matches += 1;
-        } catch {
-          failed += 1;
-        } finally {
-          checked += 1;
-          emit({
-            kind: "sourceProgress",
-            source: config.id,
-            checked,
-            total: slugs.length,
-            matches,
-          });
-        }
+  const indexRun = (async () => {
+    emit({ kind: "sourceStart", source: "atsindex", boards: manifest?.chunks.length ?? 0 });
+    if (!manifest) {
+      failedBoards += 1;
+      emit({
+        kind: "warning",
+        source: "atsindex",
+        message: "The global ATS index did not answer. Community boards continued.",
       });
-      boardsChecked += checked;
-      failedBoards += failed;
-      emit({ kind: "sourceDone", source: config.id, checked, matches, failed });
-    }),
-  );
+      emit({ kind: "sourceDone", source: "atsindex", checked: 0, matches: 0, failed: 1 });
+      return;
+    }
+    const indexed = await scanIndexedJobs({
+      input,
+      manifest,
+      onProgress: ({ checked, total, matches }) =>
+        emit({ kind: "sourceProgress", source: "atsindex", checked, total, matches }),
+    });
+    let matches = 0;
+    for (const result of indexed.results) {
+      if (results.length >= MAX_RESULTS || seen.has(result.url)) continue;
+      seen.add(result.url);
+      results.push(result);
+      emit({ kind: "result", result });
+      matches += 1;
+    }
+    boardsChecked += indexed.chunksChecked;
+    failedBoards += indexed.failedChunks;
+    emit({
+      kind: "sourceDone",
+      source: "atsindex",
+      checked: indexed.chunksChecked,
+      matches,
+      failed: indexed.failedChunks,
+    });
+  })();
 
   const communityFetchers = [allFrumJobs, yidJobs, trefJobs, luachJobs];
   const communityRun = Promise.all(
@@ -474,7 +541,7 @@ export async function runHostedSearch(
       });
     }),
   );
-  await Promise.all([atsRun, communityRun]);
+  await Promise.all([indexRun, communityRun]);
 
   results.sort((a, b) => {
     const matchDelta = b.matchedTerms.length - a.matchedTerms.length;

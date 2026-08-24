@@ -52,6 +52,8 @@ export function JobSearchClient() {
   const [error, setError] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+  const [searchedLocation, setSearchedLocation] = useState("");
+  const [indexedJobs, setIndexedJobs] = useState(0);
   const [resume, setResume] = useState("");
   const [showAi, setShowAi] = useState(false);
   const [ranking, setRanking] = useState<Record<string, RankedSearchResult>>({});
@@ -70,7 +72,11 @@ export function JobSearchClient() {
   }, [ranking, results]);
 
   function handleEvent(event: HostedSearchEvent) {
-    if (event.kind === "start") setAiConfigured(event.aiConfigured);
+    if (event.kind === "start") {
+      setAiConfigured(event.aiConfigured);
+      setSearchedLocation(event.searchedLocation || "");
+      setIndexedJobs(Number(event.indexedJobs || 0));
+    }
     else if (event.kind === "sourceStart")
       setRuns((current) => ({
         ...current,
@@ -121,6 +127,8 @@ export function JobSearchClient() {
     setResults([]);
     setSummary(null);
     setRuns(freshRuns());
+    setSearchedLocation("");
+    setIndexedJobs(0);
     setRanking({});
     setRankingMode("");
     try {
@@ -232,8 +240,8 @@ export function JobSearchClient() {
             Search every board in one place.
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted">
-            Career Ops checks public company boards and community boards together,
-            then puts every match into one list. Collection costs zero AI tokens.
+            Career Ops searches a daily index of public company boards and checks
+            community boards live, then puts every match into one list.
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4 text-sm leading-6 text-muted">
@@ -267,8 +275,8 @@ export function JobSearchClient() {
           </button>
         </div>
         <p className="mt-3 px-2 text-[11px] text-faint">
-          60 rotating public ATS company boards + All Frum Jobs, YidJob,
-          TrefAJob, and Luach. No separate Frum directory and no AI tokens used.
+          1.4M+ current listings from 20,000+ public ATS company boards + All
+          Frum Jobs, YidJob, TrefAJob, and Luach. No AI tokens used.
         </p>
       </form>
 
@@ -277,7 +285,12 @@ export function JobSearchClient() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-semibold">{running ? "Search running live" : "Search complete"}</h2>
-              <p className="mt-1 text-xs text-faint">{results.length} unified matches · 0 AI tokens</p>
+              <p className="mt-1 text-xs text-faint">
+                {results.length} unified matches · 0 AI tokens
+                {searchedLocation && searchedLocation.toLowerCase() !== location.trim().toLowerCase()
+                  ? ` · resolved to ${searchedLocation}`
+                  : ""}
+              </p>
             </div>
             {running && <button type="button" onClick={() => abortRef.current?.abort()} className="rounded-full border border-border px-3 py-1.5 text-xs text-muted">Stop run</button>}
           </div>
@@ -291,13 +304,19 @@ export function JobSearchClient() {
                     <span className="text-sm font-semibold">{source.label}</span>
                   </div>
                   <p className="mt-2 text-[11px] text-faint">
-                    {run.state === "waiting" ? source.detail : `${run.checked}/${run.total || run.checked} checked · ${run.matches} matches${run.failed ? ` · ${run.failed} unavailable` : ""}`}
+                    {run.state === "waiting" ? source.detail : `${run.checked}/${run.total || run.checked} ${source.id === "atsindex" ? "index segments" : "checked"} · ${run.matches} matches${run.failed ? ` · ${run.failed} unavailable` : ""}`}
                   </p>
                 </div>
               );
             })}
           </div>
-          {summary && <p className="mt-4 text-xs text-muted">Checked {summary.boardsChecked} boards. {summary.failedBoards > 0 ? `${summary.failedBoards} did not answer; the run continued.` : "Every selected board answered."}</p>}
+          {summary && (
+            <p className="mt-4 text-xs text-muted">
+              {indexedJobs > 0 ? `Searched ${indexedJobs.toLocaleString()} indexed listings plus community boards. ` : ""}
+              {summary.failedBoards > 0 ? `${summary.failedBoards} data segments or boards did not answer; the run continued.` : "Every data source answered."}
+              {" "}<a className="underline" href="https://github.com/Feashliaa/job-board-aggregator" target="_blank" rel="noreferrer">ATS index attribution</a>.
+            </p>
+          )}
         </section>
       )}
 

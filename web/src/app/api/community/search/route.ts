@@ -2,6 +2,7 @@ import { getCommunityMembership } from "@/lib/community/supabase-server";
 import { runHostedSearch } from "@/lib/community/hosted-scanner";
 import type { HostedSearchEvent } from "@/lib/community/job-search";
 import { isSameOriginMutation } from "@/lib/community/security.mjs";
+import { resolveRequestedLocation } from "@/lib/community/indexed-job-match.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       { status: 400 },
     );
 
-  const { supabase, user, active } = await getCommunityMembership();
+  const { supabase, user, profile, active } = await getCommunityMembership();
   if (!user)
     return Response.json({ error: "Sign in required." }, { status: 401 });
   if (!active)
@@ -61,8 +62,13 @@ export async function POST(request: Request) {
         }
       };
       try {
+        const resolvedLocation = resolveRequestedLocation(
+          location,
+          Array.isArray(profile?.locations) ? profile.locations : [],
+          request.headers,
+        );
         const summary = await runHostedSearch(
-          { query, location, sinceDays },
+          { query, location: resolvedLocation, sinceDays },
           emit,
         );
         emit({
